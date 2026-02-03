@@ -15,8 +15,9 @@ type User struct {
 	Role     string
 }
 
-var currentUser *User
-
+// =======================
+// LOGIN
+// =======================
 
 func Login(username, password string) error {
 	userFile := filepath.Join(
@@ -40,33 +41,73 @@ func Login(username, password string) error {
 		}
 
 		if parts[0] == username && parts[1] == password {
-			currentUser = &User{
-				Username: username,
-				Role:     parts[2],
-			}
-			return nil
+			return writeSession(username, parts[2])
 		}
 	}
 
 	return errors.New("login gagal")
 }
 
-func CurrentUser() *User {
-	return currentUser
+// =======================
+// SESSION
+// =======================
+
+func writeSession(username, role string) error {
+	sessionPath := filepath.Join(
+		config.DataDir,
+		config.SystemDir,
+		config.SessionFile,
+	)
+
+	file, err := os.Create(sessionPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(username + "|" + role)
+	return err
 }
 
+func CurrentUser() (*User, error) {
+	sessionPath := filepath.Join(
+		config.DataDir,
+		config.SystemDir,
+		config.SessionFile,
+	)
+
+	file, err := os.Open(sessionPath)
+	if err != nil {
+		return nil, errors.New("can login heula")
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	if scanner.Scan() {
+		parts := strings.Split(scanner.Text(), "|")
+		if len(parts) == 2 {
+			return &User{
+				Username: parts[0],
+				Role:     parts[1],
+			}, nil
+		}
+	}
+
+	return nil, errors.New("session teu valid")
+}
+
+// =======================
+// ROLE CHECK
+// =======================
 
 func RequireRole(minRole string) error {
-	if currentUser == nil {
-		return errors.New("can login heula")
+	user, err := CurrentUser()
+	if err != nil {
+		return err
 	}
 
-	userLevel, ok1 := config.Roles[currentUser.Role]
-	requiredLevel, ok2 := config.Roles[minRole]
-
-	if !ok1 || !ok2 {
-		return errors.New("role teu dikenal")
-	}
+	userLevel := config.Roles[user.Role]
+	requiredLevel := config.Roles[minRole]
 
 	if userLevel > requiredLevel {
 		return errors.New("hak aksés teu cukup")

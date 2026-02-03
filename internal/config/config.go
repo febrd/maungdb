@@ -15,4 +15,6 @@ var (
 		"admin":      1,
 		"user":       2,
 	}
+
+	SessionFile = "session.maung"
 )

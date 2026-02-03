@@ -67,7 +67,11 @@ func login() {
 		return
 	}
 
-	user := auth.CurrentUser()
+	user, err := auth.CurrentUser()
+	if err != nil {
+		fmt.Println("❌", err)
+		return
+	}
 	fmt.Printf("✅ login salaku %s (%s)\n", user.Username, user.Role)
 }
 
