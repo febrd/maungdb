@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/febrd/maungdb/internal/config"
 )
@@ -36,28 +37,38 @@ func Load(table string) (*Schema, error) {
 	return &s, nil
 }
 
+func Create(table string, fields []string, perms map[string][]string) error {
+	path := filepath.Join(
+		config.DataDir,
+		config.SchemaDir,
+		table+".tpk",
+	)
+
+	if _, err := os.Stat(path); err == nil {
+		return errors.New("schema geus aya")
+	}
+
+	s := Schema{
+		Table:       table,
+		Fields:      fields,
+		Permissions: perms,
+	}
+
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return json.NewEncoder(file).Encode(s)
+}
+
 func (s *Schema) ValidateRow(row string) error {
-	values := splitRow(row)
+	values := strings.Split(row, "|")
 	if len(values) != len(s.Fields) {
 		return errors.New("jumlah kolom teu saluyu jeung schema")
 	}
 	return nil
-}
-
-func splitRow(row string) []string {
-	var res []string
-	current := ""
-
-	for _, c := range row {
-		if c == '|' {
-			res = append(res, current)
-			current = ""
-		} else {
-			current += string(c)
-		}
-	}
-	res = append(res, current)
-	return res
 }
 
 func (s *Schema) Can(role, action string) bool {

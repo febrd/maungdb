@@ -350,13 +350,3 @@ maung tingali pamake
 Dan orang lain bisa install → **MaungDB SUDAH JADI**
 
 ---
-
-## NEXT STEP (aku bisa langsung bantu)
-
-Pilih satu:
-1️⃣ **Bikinin skeleton kode Go v0.1**
-2️⃣ **Detailin grammar MaungQL**
-3️⃣ **Bantu setup GitHub release + installer**
-
-Tinggal bilang:
-👉 **“lanjut skeleton Go”** 🐯🔥

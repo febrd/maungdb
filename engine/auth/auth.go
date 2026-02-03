@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/febrd/maungdb/internal/config"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
@@ -15,9 +16,6 @@ type User struct {
 	Role     string
 }
 
-// =======================
-// LOGIN
-// =======================
 
 func Login(username, password string) error {
 	userFile := filepath.Join(
@@ -40,13 +38,23 @@ func Login(username, password string) error {
 			continue
 		}
 
-		if parts[0] == username && parts[1] == password {
-			return writeSession(username, parts[2])
+		if parts[0] == username && bcrypt.CompareHashAndPassword([]byte(parts[1]), []byte(password)) == nil {
+				 return writeSession(username, parts[2])
 		}
 	}
 
 	return errors.New("login gagal")
 }
+
+func Logout() error {
+	sessionPath := filepath.Join(
+		config.DataDir,
+		config.SystemDir,
+		config.SessionFile,
+	)
+	return os.Remove(sessionPath)
+}
+
 
 // =======================
 // SESSION

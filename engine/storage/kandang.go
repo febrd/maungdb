@@ -8,33 +8,28 @@ import (
 	"strings"
 
 	"github.com/febrd/maungdb/internal/config"
+	"golang.org/x/crypto/bcrypt"
+
 )
 
 func Init() error {
-	// main data dir
 	if err := os.MkdirAll(config.DataDir, 0755); err != nil {
 		return err
 	}
 
-	// system dir
 	systemPath := filepath.Join(config.DataDir, config.SystemDir)
 	if err := os.MkdirAll(systemPath, 0755); err != nil {
 		return err
 	}
 
-	// schema dir
 	schemaPath := filepath.Join(config.DataDir, config.SchemaDir)
 	if err := os.MkdirAll(schemaPath, 0755); err != nil {
 		return err
 	}
 
-	// init default user
 	return initDefaultUser(systemPath)
 }
 
-// =======================
-// TABLE HANDLING
-// =======================
 
 func findTableFile(table string) (string, error) {
 	for _, ext := range config.AllowedExt {
@@ -47,7 +42,7 @@ func findTableFile(table string) (string, error) {
 }
 
 func createTableIfNotExist(table string) (string, error) {
-	ext := config.AllowedExt[0] // default .mg
+	ext := config.AllowedExt[0] 
 	path := filepath.Join(config.DataDir, table+ext)
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -101,15 +96,12 @@ func ReadAll(table string) ([]string, error) {
 	return rows, nil
 }
 
-// =======================
-// USER SYSTEM
-// =======================
 
 func initDefaultUser(systemPath string) error {
 	userFile := filepath.Join(systemPath, "users.maung")
 
 	if _, err := os.Stat(userFile); err == nil {
-		return nil // already exists
+		return nil 
 	}
 
 	file, err := os.Create(userFile)
@@ -118,12 +110,17 @@ func initDefaultUser(systemPath string) error {
 	}
 	defer file.Close()
 
+	hash, _ := bcrypt.GenerateFromPassword(
+		[]byte(config.DefaultPass),
+		bcrypt.DefaultCost,
+	)
+	
 	line := strings.Join([]string{
 		config.DefaultUser,
-		config.DefaultPass,
+		string(hash),
 		config.DefaultRole,
 	}, "|")
-
+	
 	_, err = file.WriteString(line + "\n")
 	return err
 }
