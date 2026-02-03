@@ -16,9 +16,14 @@ type Schema struct {
 	Permissions map[string][]string `json:"permissions"`
 }
 
-func Load(table string) (*Schema, error) {
+// =======================
+// LOAD SCHEMA (PER DATABASE)
+// =======================
+
+func Load(database, table string) (*Schema, error) {
 	path := filepath.Join(
 		config.DataDir,
+		"db_"+database,
 		config.SchemaDir,
 		table+".tpk",
 	)
@@ -37,13 +42,22 @@ func Load(table string) (*Schema, error) {
 	return &s, nil
 }
 
-func Create(table string, fields []string, perms map[string][]string) error {
-	path := filepath.Join(
+// =======================
+// CREATE SCHEMA (PER DATABASE)
+// =======================
+
+func Create(database, table string, fields []string, perms map[string][]string) error {
+	schemaDir := filepath.Join(
 		config.DataDir,
+		"db_"+database,
 		config.SchemaDir,
-		table+".tpk",
 	)
 
+	if err := os.MkdirAll(schemaDir, 0755); err != nil {
+		return err
+	}
+
+	path := filepath.Join(schemaDir, table+".tpk")
 	if _, err := os.Stat(path); err == nil {
 		return errors.New("schema geus aya")
 	}
@@ -62,6 +76,10 @@ func Create(table string, fields []string, perms map[string][]string) error {
 
 	return json.NewEncoder(file).Encode(s)
 }
+
+// =======================
+// VALIDATION & PERMISSION
+// =======================
 
 func (s *Schema) ValidateRow(row string) error {
 	values := strings.Split(row, "|")

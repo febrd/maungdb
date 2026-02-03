@@ -18,4 +18,5 @@ var (
 	}
 
 	SessionFile = "session.maung"
+	GrantsFile  = "grants.maung"
 )

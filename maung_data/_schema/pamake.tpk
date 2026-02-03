@@ -1,8 +1,0 @@
-{
-  "table": "pamake",
-  "fields": ["id", "ngaran", "umur"],
-  "permissions": {
-    "read":  ["user", "admin", "supermaung"],
-    "write": ["admin", "supermaung"]
-  }
-}

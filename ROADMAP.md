@@ -183,6 +183,14 @@ Sekarang REALITA:
 
 ---
 
+🚀 NEXT STEP (SEKARANG AMAN LANJUT)
+
+Sekarang kamu bisa pilih dengan tenang:
+
+👉 lanjut pretty output (FASE 6.5)
+👉 lanjut AND / OR (FASE 7)
+👉 lanjut type system (FASE 8)
+
 ## 🟡 FASE 8 — Build & Install
 
 **Status: ⏳ PARTIAL**
