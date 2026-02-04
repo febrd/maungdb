@@ -1,40 +1,34 @@
 # 🐯 MaungDB
 
-![Go Version](https://img.shields.io/badge/go-1.20%2B-00ADD8?style=flat&logo=go)
-![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-beta-orange)
-![Release](https://img.shields.io/badge/version-2.0.0-blue)
+**MaungDB** is a lightweight, fast, and *CLI-first* file-based relational database. Built purely using **Go (Golang)**, MaungDB embraces local wisdom with syntax based on the Sundanese language (`SIMPEN`, `TINGALI`, `OMEAN`) yet remains powerful with modern *Type System*, *RBAC Security*, and a *Web Dashboard UI*.
 
-**MaungDB** adalah database relasional berbasis file yang ringan, cepat, dan *CLI-first*. Dibangun murni menggunakan **Go (Golang)**, MaungDB mengusung kearifan lokal dengan sintaks berbasis Bahasa Sunda (`SIMPEN`, `TINGALI`, `OMEAN`) namun tetap powerful dengan fitur *Type System* modern, *RBAC Security*, dan *Web Dashboard UI*.
-
-> *"Database buatan urang, pikeun dunya. (Database buatan kita, untuk dunia)."*
+> *"Database buatan urang, pikeun dunya. (Database made by us, for the world)."*
 
 ---
 
-## 📸 Tampilan & Demo
+## Screenshots & Demo
 
-### 🎥 Video Demo
-*(Silakan klik gambar di bawah untuk memutar video demo)*
+### Demo Video
 
-[![MaungDB Demo](https://img.youtube.com/vi/J4IThAnQjWo/0.jpg)](https://www.youtube.com/watch?v=J4IThAnQjWo)
+*(Please click the image below to play the demo video)*
 
-> *Ganti `YOUR_VIDEO_ID` dengan ID video YouTube demo Anda.*
+> *Replace `YOUR_VIDEO_ID` with your YouTube demo video ID.*
 
-### 🖼️ Screenshot Dashboard
+### Dashboard Screenshots
+
 | **Login Screen** | **Dashboard & Stats** |
-|:---:|:---:|
-| <img src="https://github.com/febrd/maungdb/blob/main/login.png" alt="Login Screen" width="200"> | <img src="https://github.com/febrd/maungdb/blob/main/dashboard.png" alt="Dashboard" width="400"> |
+| --- | --- |
+| <img src="[https://github.com/febrd/maungdb/blob/main/login.png](https://github.com/febrd/maungdb/blob/main/login.png)" alt="Login Screen" width="200"> | <img src="[https://github.com/febrd/maungdb/blob/main/dashboard.png](https://github.com/febrd/maungdb/blob/main/dashboard.png)" alt="Dashboard" width="400"> |
 
 | **Query Console** | **Table Designer** |
-|:---:|:---:|
-| <img src="https://github.com/febrd/maungdb/blob/main/query_console.png" alt="Query Console" width="400"> | <img src="https://github.com/febrd/maungdb/blob/main/tabel_designer.png" alt="Table Designer" width="400"> |
+| --- | --- |
+| <img src="[https://github.com/febrd/maungdb/blob/main/query_console.png](https://github.com/febrd/maungdb/blob/main/query_console.png)" alt="Query Console" width="400"> | <img src="[https://github.com/febrd/maungdb/blob/main/tabel_designer.png](https://github.com/febrd/maungdb/blob/main/tabel_designer.png)" alt="Table Designer" width="400"> |
 
 ---
 
-## 🏗️ Arsitektur
+## Architecture
 
-MaungDB menggunakan konsep **Multi-Database Design**. Data disimpan secara terstruktur dalam folder sistem (`maung_data`), memastikan isolasi data yang aman antar pengguna.
+MaungDB uses a **Multi-Database Design** concept. Data is stored structurally within the system folder (`maung_data`), ensuring secure data isolation between users.
 
 ```mermaid
 graph TD;
@@ -47,24 +41,26 @@ graph TD;
     DB --> Table[.maung Data Files];
     DB --> Schema[.schema Definition];
 
+
 ```
 
 ---
 
-## 🚀 Instalasi
+## Installation
 
-### Cara 1: Install Script (Linux/Mac)
+### Method 1: Install Script (Linux/Mac)
 
-Jalankan perintah berikut di terminal Anda untuk instalasi otomatis:
+Run the following command in your terminal for automatic installation:
 
 ```bash
 curl -fsSL [https://raw.githubusercontent.com/febrd/maungdb/main/install.sh](https://raw.githubusercontent.com/febrd/maungdb/main/install.sh) | bash
 
+
 ```
 
-### Cara 2: Build Manual (Semua OS)
+### Method 2: Manual Build (All OS)
 
-Pastikan **Go 1.20+** sudah terinstall.
+Ensure **Go 1.20+** is installed.
 
 ```bash
 # 1. Clone Repository
@@ -74,171 +70,181 @@ cd maungdb
 # 2. Build Binary
 go build -ldflags "-X main.Version=v2.0.0" -o maung ./cmd/maung
 
-# 3. Pindahkan ke PATH (Linux/Mac)
+# 3. Move to PATH (Linux/Mac)
 sudo mv maung /usr/local/bin/
-# (Windows: Tambahkan folder ke Environment Variables)
+# (Windows: Add folder to Environment Variables)
+
 
 ```
 
-### ⚡ Inisialisasi Sistem
+### ⚡ System Initialization
 
-Sebelum digunakan, inisialisasi folder data sistem (kandang maung):
+Before use, initialize the system data folder (maung cage):
 
 ```bash
 maung init
-# Output: ✅ MaungDB siap Di angge
+# Output: ✅ MaungDB siap Di angge (MaungDB is ready to use)
 # Default user: maung / maung (Role: supermaung)
 
+
 ```
 
 ---
 
-## 📖 Panduan Penggunaan (User Guide)
+## 📖 User Guide
 
-MaungDB memiliki sistem **Role-Based Access Control (RBAC)**:
+MaungDB features a **Role-Based Access Control (RBAC)** system:
 
-1. **supermaung**: Dewa (Full Access: Create User, DB, Reset Password).
-2. **admin**: Manajer (Create Schema, Read/Write All Data).
-3. **user**: Pengguna Biasa (Hanya Read/Write sesuai izin tabel).
+1. **supermaung**: God Mode (Full Access: Create User, DB, Reset Password).
+2. **admin**: Manager (Create Schema, Read/Write All Data).
+3. **user**: Regular User (Only Read/Write according to table permissions).
 
-### 1. Perintah Dasar (System Commands)
+### 1. Basic Commands (System Commands)
 
-| Perintah | Deskripsi | Contoh |
+| Command | Description | Example |
 | --- | --- | --- |
-| `maung login <u,p>` | Masuk ke sistem | `maung login maung maung` |
-| `maung logout` | Keluar sesi | `maung logout` |
-| `maung whoami` | Cek status login | `maung whoami` |
-| `maung createuser` | Buat user baru (Supermaung) | `maung createuser ujang 123 admin` |
-| `maung listuser` | Lihat daftar user | `maung listuser` |
-| `maung passwd` | Ganti password | `maung passwd ujang passwordbaru` |
-| `maung createdb` | Buat database baru | `maung createdb kampus` |
-| `maung use` | Pilih database aktif | `maung use kampus` |
-| `maung setdb` | Beri akses DB ke user | `maung setdb ujang kampus` |
+| `maung login <u,p>` | Log in to the system | `maung login maung maung` |
+| `maung logout` | Log out of session | `maung logout` |
+| `maung whoami` | Check login status | `maung whoami` |
+| `maung createuser` | Create new user (Supermaung) | `maung createuser ujang 123 admin` |
+| `maung listuser` | View user list | `maung listuser` |
+| `maung passwd` | Change password | `maung passwd ujang newpassword` |
+| `maung createdb` | Create new database | `maung createdb campus` |
+| `maung use` | Select active database | `maung use campus` |
+| `maung setdb` | Grant DB access to user | `maung setdb ujang campus` |
 
-### 2. Manajemen Schema (Table Designer)
+### 2. Schema Management (Table Designer)
 
-MaungDB **Strict Typed**. Anda harus mendefinisikan kolom dan tipe data saat membuat tabel.
+MaungDB is **Strict Typed**. You must define columns and data types when creating a table.
 
-**Format CLI:**
+**CLI Format:**
 
 ```bash
-# maung schema create <tabel> <kolom:tipe,kolom:tipe>
+# maung schema create <table> <column:type,column:type>
 maung schema create pegawai id:INT,nama:STRING,kelamin:ENUM(PRIA,WANITA),gaji:FLOAT,masuk:DATE
+
 
 ```
 
-**Tipe Data Didukung:**
+**Supported Data Types:**
 
-* **`INT`**: Angka bulat (contoh: `100`, `-5`).
-* **`FLOAT`**: Angka desimal (contoh: `3.14`, `10.5`).
-* **`STRING`**: Teks pendek (contoh: `"Asep"`).
-* **`TEXT`**: Teks panjang / deskripsi.
-* **`BOOL`**: Boolean (contoh: `true`, `false`).
-* **`DATE`**: Tanggal format ISO (contoh: `2024-01-30`).
-* **`CHAR(n)`**: Karakter panjang tetap (contoh: `CHAR(5)` untuk kode pos).
-* **`ENUM(a,b)`**: Pilihan terbatas (contoh: `ENUM(L,P)`).
+* **`INT`**: Integer (e.g., `100`, `-5`).
+* **`FLOAT`**: Decimal number (e.g., `3.14`, `10.5`).
+* **`STRING`**: Short text (e.g., `"Asep"`).
+* **`TEXT`**: Long text / description.
+* **`BOOL`**: Boolean (e.g., `true`, `false`).
+* **`DATE`**: Date in ISO format (e.g., `2024-01-30`).
+* **`CHAR(n)`**: Fixed-length characters (e.g., `CHAR(5)` for postal codes).
+* **`ENUM(a,b)`**: Limited choices (e.g., `ENUM(L,P)`).
 
 ---
 
-## 🐯 MaungQL v2 (Query Language)
+## MaungQL v2 (Query Language)
 
-MaungDB menggunakan bahasa query sendiri yang disebut **MaungQL**. Berikut adalah kamus lengkapnya.
+MaungDB uses its own query language called **MaungQL**. Below is the complete dictionary.
 
 ### ➤ CRUD Operations
 
 #### 1. SIMPEN (Insert)
 
-Menyimpan data baru. Delimiter menggunakan pipa `|`.
+Save new data. Uses the pipe `|` delimiter.
 
 ```sql
 SIMPEN pegawai 101|Asep|PRIA|5500000|2023-01-10
 SIMPEN pegawai 102|Siti|WANITA|6000000|2023-02-20
 
+
 ```
 
 #### 2. TINGALI (Select)
 
-Melihat data. Mendukung filtering, sorting, limiting, dan searching.
+View data. Supports filtering, sorting, limiting, and searching.
 
 ```sql
--- Lihat semua data
+-- View all data
 TINGALI pegawai
 
--- Filter sederhana
+-- Simple filter
 TINGALI pegawai DIMANA kelamin = WANITA
 
--- Filter logika kompleks (DAN / ATAU)
+-- Complex logic filter (AND / OR)
 TINGALI pegawai DIMANA kelamin = PRIA DAN gaji > 5000000
+
 
 ```
 
 #### 3. OMEAN (Update)
 
-Memperbarui data yang sudah ada.
+Update existing data.
 
 ```sql
 -- Format: OMEAN <tbl> JADI <col>=<val> DIMANA ...
 OMEAN pegawai JADI gaji=9000000 DIMANA id = 101
 
+
 ```
 
 #### 4. MICEUN (Delete)
 
-Menghapus data dari tabel.
+Delete data from a table.
 
 ```sql
 -- Format: MICEUN TI <tbl> DIMANA ...
 MICEUN TI pegawai DIMANA id = 102
 
+
 ```
 
-### ➤ Fitur Lanjutan (Advanced Features)
+### ➤ Advanced Features
 
 #### 1. RUNTUYKEUN (Sorting / Order By)
 
-Mengurutkan data berdasarkan kolom tertentu.
+Sort data based on a specific column.
 
-* `TI_LUHUR`: Descending (Besar ke Kecil).
-* `TI_HANDAP`: Ascending (Kecil ke Besar).
+* `TI_LUHUR`: Descending (Large to Small).
+* `TI_HANDAP`: Ascending (Small to Large).
 
 ```sql
--- Urutkan gaji terbesar
+-- Sort by largest salary
 TINGALI pegawai RUNTUYKEUN gaji TI_LUHUR
+
 
 ```
 
 #### 2. SAKADAR & LIWATAN (Limit & Offset)
 
-Membatasi jumlah data untuk pagination.
+Limit the amount of data for pagination.
 
 ```sql
--- Ambil 5 data pertama
+-- Get first 5 records
 TINGALI pegawai SAKADAR 5
 
--- Halaman ke-2 (lewati 5 data awal)
+-- 2nd Page (skip first 5 records)
 TINGALI pegawai SAKADAR 5 LIWATAN 5
+
 
 ```
 
 #### 3. JIGA (Search / Like)
 
-Pencarian teks (Case-insensitive search).
+Text search (Case-insensitive search).
 
 ```sql
--- Cari nama yang mengandung "sep" (misal: Asep, Septian)
+-- Search for names containing "sep" (e.g., Asep, Septian)
 TINGALI pegawai DIMANA nama JIGA sep
+
 
 ```
 
 ---
 
-## 🌐 Web Server & API
+## Web Server & API
 
-MaungDB dilengkapi dengan **Embedded Web Server** yang menyajikan Dashboard UI dan REST API.
+MaungDB comes with an **Embedded Web Server** that serves a Dashboard UI and REST API.
 
-### Menjalankan Server
+### Running the Server
 
-Secara default berjalan di port **7070**.
+Runs on port **7070** by default.
 
 ```bash
 maung server 7070
@@ -247,17 +253,18 @@ maung server 7070
 # 🌐 Web UI  : http://localhost:7070
 # 🔌 API     : http://localhost:7070/query
 
+
 ```
 
-### Akses Dashboard
+### Access Dashboard
 
-Buka browser dan kunjungi: **[http://localhost:7070](https://www.google.com/search?q=http://localhost:7070)**
+Open your browser and visit: **[http://localhost:7070](https://www.google.com/search?q=http://localhost:7070)**
 
-* Login default: `maung` / `maung`
+* Default login: `maung` / `maung`
 
-### Menggunakan API (cURL)
+### Using the API (cURL)
 
-Anda bisa mengintegrasikan MaungDB dengan aplikasi Frontend (React/Vue/Mobile) melalui endpoint `/query`.
+You can integrate MaungDB with Frontend applications (React/Vue/Mobile) via the `/query` endpoint.
 
 **Request:**
 
@@ -265,6 +272,7 @@ Anda bisa mengintegrasikan MaungDB dengan aplikasi Frontend (React/Vue/Mobile) m
 curl -X POST http://localhost:7070/query \
      -H "Content-Type: application/json" \
      -d '{"query": "TINGALI pegawai DIMANA gaji > 5000000"}'
+
 
 ```
 
@@ -281,80 +289,85 @@ curl -X POST http://localhost:7070/query \
   }
 }
 
+
 ```
 
-## ⚖️ Perbandingan: MaungQL vs SQL Biasa
+## ⚖️ Comparison: MaungQL vs Standard SQL
 
-Bagi Anda yang sudah terbiasa dengan SQL (seperti MySQL atau PostgreSQL), atau bagi pemula yang baru belajar, berikut adalah tabel perbandingan untuk memahami logika MaungDB:
+For those already familiar with SQL (like MySQL or PostgreSQL), or for beginners just starting out, here is a comparison table to understand MaungDB logic:
 
-| Konsep Dasar | SQL Standard (Inggris) | 🐯 MaungQL (Sunda/Lokal) | Arti Harfiah / Filosofi |
-| :--- | :--- | :--- | :--- |
-| **Melihat Data** | `SELECT * FROM table` | `TINGALI table` | **Tingali** artinya "Lihat". Kita ingin melihat isi data. |
-| **Menambah Data** | `INSERT INTO table` | `SIMPEN table` | **Simpen** artinya "Simpan". Kita menyimpan data ke laci/tabel. |
-| **Mengubah Data** | `UPDATE table SET ...` | `OMEAN table JADI ...` | **Omean** artinya "Perbaiki" atau "Modifikasi". Data salah? Di-omean (diperbaiki). |
-| **Menghapus Data** | `DELETE FROM table` | `MICEUN TI table` | **Miceun** artinya "Buang". Data tidak perlu? Dibuang. |
-| **Kondisi** | `WHERE` | `DIMANA` | Menanyakan lokasi data spesifik. |
-| **Urutan** | `ORDER BY` | `RUNTUYKEUN` | **Runtuykeun** artinya "Urutkan/Runtunkan". Biar rapi berurutan. |
-| **Batas Data** | `LIMIT` | `SAKADAR` | **Sakadar** artinya "Sekadar/Hanya". Ambil sekadarnya saja. |
-| **Pencarian** | `LIKE` | `JIGA` | **Jiga** artinya "Mirip/Seperti". Mencari yang mirip-mirip. |
+| Basic Concept | SQL Standard (English) | 🐯 MaungQL (Sundanese/Local) | Literal Meaning / Philosophy |
+| --- | --- | --- | --- |
+| **View Data** | `SELECT * FROM table` | `TINGALI table` | **Tingali** means "Look/See". We want to see the content of the data. |
+| **Add Data** | `INSERT INTO table` | `SIMPEN table` | **Simpen** means "Save/Keep". We store data into a drawer/table. |
+| **Modify Data** | `UPDATE table SET ...` | `OMEAN table JADI ...` | **Omean** means "Fix" or "Modify". Data is wrong? It gets *di-omean* (fixed). |
+| **Delete Data** | `DELETE FROM table` | `MICEUN TI table` | **Miceun** means "Throw away". Data is not needed? Throw it away. |
+| **Condition** | `WHERE` | `DIMANA` | Asking for the location of specific data (Where). |
+| **Sequence** | `ORDER BY` | `RUNTUYKEUN` | **Runtuykeun** means "Sort/Sequence". So it's neatly ordered. |
+| **Data Limit** | `LIMIT` | `SAKADAR` | **Sakadar** means "Just/Only". Take just enough. |
+| **Search** | `LIKE` | `JIGA` | **Jiga** means "Like/Similar". Looking for something similar. |
 
-> *"Coding tidak harus selalu pakai Bahasa Inggris. Logika adalah universal."*
-
----
-
-## 💡 Filosofi & Tujuan (Why MaungDB?)
-
-MaungDB diciptakan bukan untuk menyaingi raksasa seperti Oracle atau PostgreSQL di tingkat enterprise, melainkan untuk **Edukasi** dan **Aksesibilitas**.
-
-### 1. Mengatasi Kendala Bahasa (Language Barrier)
-Banyak siswa SD, SMP, hingga SMK di Indonesia yang cerdas secara logika, namun terhambat saat belajar *coding* karena harus menghafal sintaks bahasa Inggris yang asing (`Constraint`, `Foreign Key`, `Execute`).
-* **Solusi:** MaungDB menggunakan bahasa ibu (Sunda/Indonesia) yang akrab di telinga, membuat konsep database terasa lebih dekat dan tidak mengintimidasi.
-
-### 2. Memahami Konsep "Under The Hood"
-Database modern seringkali terasa seperti "Kotak Ajaib" (Blackbox). Kita install, lalu jalan. Tapi bagaimana cara kerjanya?
-* **Solusi:** MaungDB adalah database **File-Based** yang transparan. Siswa bisa membuka folder `maung_data` dan melihat sendiri bagaimana tabel disimpan, bagaimana skema ditulis, dan bagaimana data dipisahkan. Ini sangat baik untuk mahasiswa IT yang ingin belajar cara kerja DBMS.
-
-### 3. Kesederhanaan (Simplicity)
-Menginstall database server konvensional membutuhkan konfigurasi port, user root, service daemon, dll yang seringkali membuat pemula menyerah sebelum mulai *coding*.
-* **Solusi:** MaungDB adalah single binary. Download -> Jalankan. Tidak ada instalasi service yang rumit. Cocok untuk laptop sekolah dengan spesifikasi rendah.
+> *"Coding doesn't always have to use English. Logic is universal."*
 
 ---
 
-## 🎓 Siapa yang Cocok Menggunakan MaungDB?
+## Philosophy & Goals (Why MaungDB?)
 
-* **👶 Siswa SD/SMP:** Yang baru pertama kali mengenal konsep data. Perintah `SIMPEN` dan `TINGALI` jauh lebih mudah dipahami logika dasarnya daripada struktur SQL yang kaku.
-* **🏫 Siswa SMK/SMA:** Sebagai jembatan sebelum masuk ke SQL industri. Memahami logika *Query* (CRUD) tanpa pusing dengan sintaks yang rumit.
-* **💻 Mahasiswa IT:** Untuk mempelajari *Source Code* bagaimana membuat Database Engine sendiri menggunakan bahasa Go (Golang).
-* **🔄 Career Switcher:** Mereka yang ingin terjun ke dunia Data Analyst/Engineer tapi merasa terintimidasi oleh kompleksitas tools modern. MaungDB adalah tempat latihan yang ramah.
+MaungDB was created not to compete with giants like Oracle or PostgreSQL at the enterprise level, but for **Education** and **Accessibility**.
+
+### 1. Overcoming Language Barriers
+
+Many smart elementary, junior high, and vocational students in Indonesia are logically brilliant but are hindered when learning *coding* because they have to memorize foreign English syntax (`Constraint`, `Foreign Key`, `Execute`).
+
+* **Solution:** MaungDB uses a mother tongue (Sundanese/Indonesian) that is familiar to the ear, making database concepts feel closer and less intimidating.
+
+### 2. Understanding Concepts "Under The Hood"
+
+Modern databases often feel like a "Magic Box" (Blackbox). We install, then it runs. But how does it work?
+
+* **Solution:** MaungDB is a **File Based** database that is transparent. Students can open the `maung_data` folder and see for themselves how tables are stored, how schemas are written, and how data is separated. This is excellent for IT students who want to learn how a DBMS works.
+
+### 3. Simplicity
+
+Installing a conventional database server requires configuring ports, root users, service daemons, etc., which often makes beginners give up before they start *coding*.
+
+* **Solution:** MaungDB is a single binary. Download -> Run. No complicated service installation. Suitable for school laptops with low specifications.
+
+---
+
+## Who is MaungDB Suitable For?
+
+* ** - Elementary/Middle School Students:** Those getting to know data concepts for the first time. Commands `SIMPEN` and `TINGALI` are much easier to understand logically than rigid SQL structures.
+* ** - Vocational/High School Students:** As a bridge before entering industrial SQL. Understanding *Query* logic (CRUD) without the headache of complex syntax.
+* ** - IT Students:** To study the *Source Code* of how to build a Database Engine yourself using the Go (Golang) language.
+* ** - Career Switchers:** Those who want to dive into the world of Data Analyst/Engineer but feel intimidated by the complexity of modern tools. MaungDB is a friendly practice ground.
 
 ---
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-* **Bahasa**: Go (Golang) 1.20+
+* **Language**: Go (Golang) 1.20+
 * **Storage**: Flat File (CSV-like with schema validation)
 * **Frontend**: HTML5, CSS3 (MaungUI Theme), Vanilla JS
 * **Protocol**: HTTP REST API
 
 ---
 
-## 🤝 Kontribusi
+## Contribution
 
-Proyek ini Open Source dan sangat terbuka untuk kontribusi!
+This project is Open Source and very open to contributions!
 
-1. Fork repository ini.
-2. Buat branch fitur baru (`git checkout -b fitur-anyar`).
-3. Commit perubahan (`git commit -m "Nambahkeun fitur X"`).
-4. Push ke branch (`git push origin fitur-anyar`).
-5. Buka **Pull Request**.
+1. Fork this repository.
+2. Create a new feature branch (`git checkout -b new-feature`).
+3. Commit your changes (`git commit -m "Add feature X"`).
+4. Push to the branch (`git push origin new-feature`).
+5. Open a **Pull Request**.
 
-Jangan lupa beri ⭐ **Bintang** jika Anda menyukai kearifan lokal dalam kode ini!
+Don't forget to give a ⭐ **Star** if you like the local wisdom in this code!
 
 ---
 
-**Dibuat dengan ❤️ dan ☕ di Bandung.**
+**Made with ❤️ and ☕ in Bandung.**
 *(c) 2026 MaungDB Team*
-
-
