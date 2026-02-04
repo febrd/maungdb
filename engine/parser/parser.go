@@ -110,11 +110,7 @@ func parseInsert(tokens []string) (*Command, error) {
 }
 
 
-// ==========================================
-// PARSE SELECT (TINGALI) - VERSI LENGKAP
-// ==========================================
 func parseSelect(tokens []string) (*Command, error) {
-	// Minimal: TINGALI <table_name>
 	if len(tokens) < 2 {
 		return nil, errors.New("format TINGALI salah, minimal: TINGALI <tabel>")
 	}
@@ -123,17 +119,13 @@ func parseSelect(tokens []string) (*Command, error) {
 		Type:  CmdSelect,
 		Table: tokens[1],
 		Where: []Condition{},
-		Limit: -1, // Default -1 hartina euweuh limit
+		Limit: -1, 
 	}
 
-	// Pointer 'idx' pikeun nyusud token ti kenca ka katuhu
 	idx := 2
 
-	// 1. Parsing DIMANA (WHERE)
-	// Cek naha aya token saterusna jeung naha éta "DIMANA"
+
 	if idx < len(tokens) && strings.ToUpper(tokens[idx]) == "DIMANA" {
-		// Urang kudu nyaho DIMANA ieu nepi mana. 
-		// Batasna nyaeta lamun panggih keyword lain (RUNTUYKEUN/SAKADAR/LIWATAN) atawa beak token.
 		endIdx := len(tokens)
 		
 		for i := idx + 1; i < len(tokens); i++ {
@@ -144,31 +136,26 @@ func parseSelect(tokens []string) (*Command, error) {
 			}
 		}
 
-		// Parse bagian WHERE wungkul
 		whereCmd, err := parseWhere(tokens[idx+1 : endIdx])
 		if err != nil {
 			return nil, err
 		}
 		cmd.Where = whereCmd.Where
 		
-		// Geser pointer idx ka batas akhir tadi
 		idx = endIdx
 	}
 
-	// 2. Parsing RUNTUYKEUN (ORDER BY)
 	if idx < len(tokens) && strings.ToUpper(tokens[idx]) == "RUNTUYKEUN" {
-		// Pastikeun aya ngaran kolom sanggeus keyword
 		if idx+1 >= len(tokens) {
 			return nil, errors.New("RUNTUYKEUN butuh ngaran kolom")
 		}
 		
 		cmd.OrderBy = tokens[idx+1]
-		idx += 2 // Luncat 2 lengkah (keyword + kolom)
+		idx += 2 
 
-		// Cek naha aya modifier TI_LUHUR (DESC) / TI_HANDAP (ASC)
 		if idx < len(tokens) {
 			mode := strings.ToUpper(tokens[idx])
-			if mode == "TI_LUHUR" || mode == "TURUN" { // Support alias
+			if mode == "TI_LUHUR" || mode == "TURUN" { 
 				cmd.OrderDesc = true
 				idx++
 			} else if mode == "TI_HANDAP" || mode == "NAEK" {
@@ -178,7 +165,6 @@ func parseSelect(tokens []string) (*Command, error) {
 		}
 	}
 
-	// 3. Parsing SAKADAR (LIMIT)
 	if idx < len(tokens) && strings.ToUpper(tokens[idx]) == "SAKADAR" {
 		if idx+1 >= len(tokens) {
 			return nil, errors.New("SAKADAR butuh angka")
@@ -193,7 +179,6 @@ func parseSelect(tokens []string) (*Command, error) {
 		idx += 2
 	}
 
-	// 4. Parsing LIWATAN (OFFSET)
 	if idx < len(tokens) && strings.ToUpper(tokens[idx]) == "LIWATAN" {
 		if idx+1 >= len(tokens) {
 			return nil, errors.New("LIWATAN butuh angka")
@@ -211,14 +196,11 @@ func parseSelect(tokens []string) (*Command, error) {
 	return cmd, nil
 }
 
-// ==========================================
-// PARSE WHERE (DIMANA) - SUPPORT JIGA & MIX LOGIC
-// ==========================================
+
 func parseWhere(tokens []string) (*Command, error) {
 	cmd := &Command{Where: []Condition{}}
 	remaining := tokens
 	
-	// Loop salila masih aya minimal 3 token (Col Op Val)
 	for len(remaining) >= 3 {
 		cond := Condition{
 			Field:    remaining[0],
@@ -227,29 +209,23 @@ func parseWhere(tokens []string) (*Command, error) {
 			LogicOp:  "",
 		}
 
-		// Khusus Operator JIGA (LIKE), bersihan tanda kutip
 		if strings.ToUpper(cond.Operator) == "JIGA" {
 			cond.Value = strings.Trim(cond.Value, "'\"")
 		}
 
-		// Cek Logika Saterusna (DAN/ATAU/SARENG/ATAWA)
 		if len(remaining) > 3 {
 			rawLogic := strings.ToUpper(remaining[3])
 			
-			// Normalisasi Logic Op jadi standar "DAN" / "ATAU"
 			if rawLogic == "sareng" || rawLogic == "SARENG" {
 				cond.LogicOp = "SARENG"
-				remaining = remaining[4:] // Geser 4 lengkah (Col Op Val Logic)
+				remaining = remaining[4:] 
 			} else if rawLogic == "atawa" || rawLogic == "ATAWA" {
 				cond.LogicOp = "ATAWA"
 				remaining = remaining[4:]
 			} else {
-				// Mun kapanggih token ka-4 tapi lain logika, berarti error atawa beres
-				// Tapi di dieu urang anggap beres wae (break)
 				remaining = nil
 			}
 		} else {
-			// Geus teu aya sisa token
 			remaining = nil
 		}
 
