@@ -24,11 +24,11 @@
 ### 🖼️ Screenshot Dashboard
 | **Login Screen** | **Dashboard & Stats** |
 |:---:|:---:|
-| <img src="https://via.placeholder.com/400x250?text=Login+Screen" alt="Login Screen" width="400"> | <img src="https://via.placeholder.com/400x250?text=Dashboard+Stats" alt="Dashboard" width="400"> |
+| <img src="https://github.com/febrd/maungdb/blob/main/login.png" alt="Login Screen" width="400"> | <img src="https://github.com/febrd/maungdb/blob/main/dashboard.png" alt="Dashboard" width="400"> |
 
 | **Query Console** | **Table Designer** |
 |:---:|:---:|
-| <img src="https://via.placeholder.com/400x250?text=Query+Console" alt="Query Console" width="400"> | <img src="https://via.placeholder.com/400x250?text=Table+Designer" alt="Table Designer" width="400"> |
+| <img src="https://github.com/febrd/maungdb/blob/main/query_console.png" alt="Query Console" width="400"> | <img src="https://github.com/febrd/maungdb/blob/main/tabel_designer.png" alt="Table Designer" width="400"> |
 
 ---
 
