@@ -1,6 +1,7 @@
-<img src="https://github.com/febrd/maungdb/blob/main/logonya.png" alt="Logo MaungDB" width="500">
-
 # 🐯 MaungDB
+
+<img src="https://github.com/febrd/maungdb/blob/main/logonya.png" alt="Logo MaungDB" width="2000">
+
 
 **MaungDB** is a lightweight, fast, and MaungDB embraces local wisdom with syntax based on the Sundanese language (`SIMPEN`, `TINGALI`, `OMEAN`) yet remains powerful with modern *Type System*, *RBAC Security*, and a *Web Dashboard UI*.
 
