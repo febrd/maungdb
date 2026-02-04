@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MaungDB Studio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style_main.css" />
+
+
+  
+</head>
+<body>
+
+  <div class="overlay" onclick="toggleSidebar()"></div>
+
+  <div class="app-layout">
+    
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span style="margin-right: 10px;">🐯</span> MaungDB Studio
+      </div>
+
+      <div class="user-profile">
+        <div class="user-avatar">M</div>
+        <div class="user-name" id="userName">User</div>
+        <div class="user-role" id="userRole">Connecting...</div>
+      </div>
+
+      <nav class="nav-menu">
+        <div class="nav-item active" onclick="switchTab('dashboard')">
+          <span>📊</span> Dashboard
+        </div>
+        <div class="nav-item" onclick="switchTab('database')">
+          <span>🗄️</span> Database Manager
+        </div>
+        <div class="nav-item" onclick="switchTab('query')">
+          <span>⚡</span> Query Console
+        </div>
+        <div class="nav-item" onclick="switchTab('schema')">
+          <span>📐</span> Table Designer
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button onclick="logout()" class="btn-logout">Sign Out</button>
+      </div>
+    </aside>
+
+    <div class="main-wrapper">
+      
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+          <div class="db-badge">
+            <div class="dot" id="dbIndicator"></div>
+            <span id="activeDBName">No Database Selected</span>
+          </div>
+        </div>
+        <div class="server-version">
+          Server v1.0.0
+        </div>
+      </header>
+
+      <div class="content-area">
+        
+        <div id="tab-dashboard" class="tool-panel active">
+          <h2>Overview</h2>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-val" id="statTables">0</div>
+              <div class="stat-title">Total Tables</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val" id="statQueries">0</div>
+              <div class="stat-title">Queries Executed</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val" style="color: var(--success);">OK</div>
+              <div class="stat-title">System Status</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Storage Utilization</h3>
+            <div class="chart-container">
+              <div class="chart-col" style="height: 30%;"><span>Users</span></div>
+              <div class="chart-col" style="height: 65%;"><span>Transactions</span></div>
+              <div class="chart-col" style="height: 45%;"><span>Logs</span></div>
+              <div class="chart-col" style="height: 20%;"><span>Cache</span></div>
+              <div class="chart-col" style="height: 80%;"><span>Products</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-database" class="tool-panel">
+          <h2>Database Management</h2>
+          <div class="card">
+            <h3>Switch Database (USE)</h3>
+            <div style="display: flex; gap: 10px;">
+              <input type="text" id="useDbName" placeholder="Enter database name (e.g., kampus)">
+              <button onclick="doUseDB()" class="btn-primary">Switch</button>
+            </div>
+            <div id="useDbAlert"></div>
+          </div>
+
+          <div class="card">
+            <h3>Create New Database</h3>
+            <div style="display: flex; gap: 10px;">
+              <input type="text" id="newDbName" placeholder="New database name">
+              <button onclick="doCreateDB()" class="btn-primary" style="background-color: var(--success);">Create</button>
+            </div>
+            <div id="createDbAlert"></div>
+          </div>
+        </div>
+
+        <div id="tab-query" class="tool-panel">
+          <h2>Query Console</h2>
+          <div class="query-layout">
+            <div style="display: flex; flex-direction: column;">
+              <textarea id="queryInput" class="editor-box" style="height: 200px; border-radius: 8px 8px 0 0;" placeholder="Type your MaungQL query here..."></textarea>
+              <button onclick="runQuery()" class="btn-primary" style="border-radius: 0 0 8px 8px;">▶ Execute Query</button>
+              
+              <div id="queryOutput" style="margin-top: 20px;"></div>
+            </div>
+
+            <div class="syntax-card">
+              <h4 style="margin-top: 0; color: var(--primary);">Kamus MaungQL v2</h4>
+              
+              <div class="syntax-item"><span class="code-pill">TINGALI &lt;tbl&gt;</span><div style="font-size: 0.85rem; color: var(--text-muted);">View data (SELECT)</div></div>
+              <div class="syntax-item"><span class="code-pill">SIMPEN &lt;tbl&gt; val|val</span><div style="font-size: 0.85rem; color: var(--text-muted);">Insert data</div></div>
+              <div class="syntax-item"><span class="code-pill">OMEAN &lt;tbl&gt; JADI c=v</span><div style="font-size: 0.85rem; color: var(--text-muted);">Update data</div></div>
+              <div class="syntax-item"><span class="code-pill">MICEUN TI &lt;tbl&gt;</span><div style="font-size: 0.85rem; color: var(--text-muted);">Delete data</div></div>
+              <div class="syntax-item"><span class="code-pill">DIMANA col = val</span><div style="font-size: 0.85rem; color: var(--text-muted);">Filter (Where)</div></div>
+              <div class="syntax-item"><span class="code-pill">SARENG / ATAWA</span><div style="font-size: 0.85rem; color: var(--text-muted);">Logic operators</div></div>
+              <div class="syntax-item"><span class="code-pill">RUNTUYKEUN &lt;col&gt;</span><div style="font-size: 0.85rem; color: var(--text-muted);">Order By (TI_LUHUR/HANDAP)</div></div>
+              <div class="syntax-item"><span class="code-pill">SAKADAR &lt;n&gt;</span><div style="font-size: 0.85rem; color: var(--text-muted);">Limit rows</div></div>
+
+              <div class="syntax-item">
+                <h5 style="margin:5px 0; color:var(--primary);">Data Types</h5>
+                <span style="font-size: 0.8rem; font-family:monospace; color:#4f46e5;">INT, FLOAT, BOOL, STRING, TEXT, DATE, CHAR(n), ENUM(a,b)</span>
+              </div>
+
+              <h5 style="margin: 15px 0 10px 0; color: var(--primary); border-top: 1px dashed var(--border); padding-top: 10px;">
+                🐯 Contoh (Tabel Pegawai)
+              </h5>
+
+              <div class="syntax-item">
+                <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">1. Setup Table (CLI Command)</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem; background-color: #fff7ed; color: #c2410c; border: 1px solid #fdba74;" onclick="copyToQuery(this.innerText)">DAMEL pegawai id:INT,nama:STRING,kelamin:ENUM(PRIA,WANITA),gaji:FLOAT,divisi:STRING,tgl_masuk:DATE</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top:2px; font-style:italic;">*Copy & Jalankan di Terminal Server (CMD/Bash)</div>
+              </div>
+
+              <div class="syntax-item">
+                <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">2. Insert Data</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem;" onclick="copyToQuery(this.innerText)">SIMPEN pegawai 101|Asep|PRIA|5500000|IT|2023-01-10</div>
+              </div>
+
+              <div class="syntax-item">
+                <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">3. Filter & Logic</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem;" onclick="copyToQuery(this.innerText)">TINGALI pegawai DIMANA kelamin = WANITA SARENG gaji > 5000000</div>
+              </div>
+
+              <div class="syntax-item">
+                <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">4. Search (Like)</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem;" onclick="copyToQuery(this.innerText)">TINGALI pegawai DIMANA nama JIGA sep</div>
+              </div>
+
+              <div class="syntax-item">
+                <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">5. Ranking (Order & Limit)</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem;" onclick="copyToQuery(this.innerText)">TINGALI pegawai RUNTUYKEUN gaji TI_LUHUR SAKADAR 3</div>
+              </div>
+
+              <div class="syntax-item">
+                <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">6. Update Data</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem;" onclick="copyToQuery(this.innerText)">OMEAN pegawai JADI gaji=8500000 DIMANA id = 101</div>
+              </div>
+
+              <div class="syntax-item">
+                <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">7. Delete Data</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem;" onclick="copyToQuery(this.innerText)">MICEUN TI pegawai DIMANA id = 103</div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-schema" class="tool-panel">
+          <h2>Table Designer</h2>
+          <div class="card">
+            <form onsubmit="event.preventDefault(); buildAndSubmitSchema();">
+              <div class="form-group">
+                <label>Table Name</label>
+                <input type="text" id="builderTableName" placeholder="e.g. products" required>
+              </div>
+
+              <label style="display:block; margin-bottom: 10px; font-weight: 500;">Columns</label>
+              
+              <div id="columnsContainer">
+                <div class="col-row">
+                  <input type="text" placeholder="Name" class="col-name" required style="flex: 2;">
+                  <select class="col-type" style="flex: 1;" onchange="handleTypeChange(this)">
+                    <option value="int">INT (Angka)</option>
+                    <option value="float">FLOAT (Desimal)</option>
+                    <option value="string">STRING (Teks)</option>
+                    <option value="text">TEXT (Panjang)</option>
+                    <option value="bool">BOOL (T/F)</option>
+                    <option value="date">DATE (Tanggal)</option>
+                    <option value="enum">ENUM (Pilihan)</option>
+                    <option value="char">CHAR (Fixed)</option>
+                  </select>
+                  <input type="text" class="col-args" placeholder="Detail..." style="flex: 1; display: none;">
+                  <button type="button" class="btn-icon" disabled style="opacity: 0.5;">×</button>
+                </div>
+              </div>
+
+              <button type="button" onclick="addNewColumnRow()" class="btn-add-row">+ Add Another Column</button>
+              <button type="submit" class="btn-primary" style="width: 100%;">Create Table</button>
+            </form>
+            <div id="schemaBuilderAlert"></div>
+
+            <div id="insertDataContainer" class="insert-container"></div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/db.js"></script>
+  <script src="/static/js/query.js"></script>
+  <script src="/static/js/auth.js"></script>
+
+  <script>
+    // --- 1. PERSISTENCE HELPERS ---
+    function saveState(key, value) { localStorage.setItem(key, value); }
+    function loadState(key) { return localStorage.getItem(key); }
+
+    // --- 2. UI LOGIC ---
+    function toggleSidebar() {
+      document.querySelector('.sidebar').classList.toggle('open');
+      document.querySelector('.overlay').classList.toggle('active');
+    }
+
+    function switchTab(tabName) {
+      if(window.innerWidth <= 768) toggleSidebar();
+      document.querySelectorAll('.tool-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('tab-' + tabName).classList.add('active');
+      const index = ['dashboard', 'database', 'query', 'schema'].indexOf(tabName);
+      if(index >= 0) document.querySelectorAll('.nav-item')[index].classList.add('active');
+    }
+
+    window.onload = async () => {
+      const msg = await whoami();
+      if(msg) {
+        document.getElementById('userName').innerText = "Admin"; 
+        document.getElementById('userRole').innerText = msg;
+        const colors = ['#f59e0b', '#10b981', '#6366f1', '#ec4899'];
+        document.querySelector('.user-avatar').style.background = colors[Math.floor(Math.random() * colors.length)];
+      }
+
+      // Restore State
+      const lastDB = loadState('maung_active_db');
+      if (lastDB && lastDB !== 'null') {
+        document.getElementById('dbIndicator').classList.add('active');
+        document.getElementById('activeDBName').innerText = lastDB;
+        try { await API.post("/db/use", { database: lastDB }); } catch (e) {}
+      }
+      document.getElementById('statTables').innerText = loadState('maung_stat_tables') || 0;
+      document.getElementById('statQueries').innerText = loadState('maung_stat_queries') || 0;
+      
+      document.querySelectorAll('.chart-col').forEach(col => {
+        col.style.height = (Math.floor(Math.random() * 60) + 20) + '%';
+      });
+    };
+
+    const originalRunQuery = window.runQuery;
+    window.runQuery = async function() {
+      await originalRunQuery();
+      let newCount = parseInt(document.getElementById('statQueries').innerText) + 1;
+      document.getElementById('statQueries').innerText = newCount;
+      saveState('maung_stat_queries', newCount);
+    }
+
+    const originalDoUseDB = window.doUseDB;
+    window.doUseDB = async function() {
+      await originalDoUseDB();
+      const currentDB = document.getElementById('activeDBName').innerText;
+      if (currentDB && currentDB !== 'No Database Selected' && currentDB !== 'Belum dipilih') {
+        saveState('maung_active_db', currentDB);
+      }
+    }
+
+    // --- 3. SCHEMA BUILDER LOGIC (UPDATED FOR ENUM & CHAR) ---
+    
+    function addNewColumnRow() {
+      const container = document.getElementById('columnsContainer');
+      const div = document.createElement('div');
+      div.className = 'col-row';
+      div.innerHTML = `
+        <input type="text" placeholder="Name" class="col-name" required style="flex: 2;">
+        <select class="col-type" style="flex: 1;" onchange="handleTypeChange(this)">
+          <option value="int">INT</option>
+          <option value="float">FLOAT</option>
+          <option value="string">STRING</option>
+          <option value="text">TEXT</option>
+          <option value="bool">BOOL</option>
+          <option value="date">DATE</option>
+          <option value="enum">ENUM</option>
+          <option value="char">CHAR</option>
+        </select>
+        <input type="text" class="col-args" placeholder="Detail..." style="flex: 1; display: none;">
+        <button type="button" class="btn-icon" onclick="this.parentElement.remove()">×</button>
+      `;
+      container.appendChild(div);
+    }
+
+    // Handle Tampilan Input Tambahan (Enum/Char)
+    function handleTypeChange(selectElem) {
+        const row = selectElem.parentElement;
+        const argsInput = row.querySelector('.col-args');
+        const val = selectElem.value;
+        
+        if (val === 'enum') {
+            argsInput.style.display = 'block';
+            argsInput.placeholder = 'Pria,Wanita';
+            argsInput.required = true;
+        } else if (val === 'char') {
+            argsInput.style.display = 'block';
+            argsInput.placeholder = 'Panjang (Cth: 5)';
+            argsInput.required = true;
+        } else {
+            argsInput.style.display = 'none';
+            argsInput.required = false;
+            argsInput.value = '';
+        }
+    }
+
+    async function buildAndSubmitSchema() {
+      const tableName = document.getElementById('builderTableName').value;
+      const rows = document.querySelectorAll('.col-row');
+      const alertBox = document.getElementById('schemaBuilderAlert');
+      
+      let fieldsArray = [];
+      let isValid = true;
+
+      rows.forEach(row => {
+        const name = row.querySelector('.col-name').value;
+        const type = row.querySelector('.col-type').value;
+        const args = row.querySelector('.col-args').value; // Ambil args
+        
+        if(name) {
+            // Konstruksi Schema: name:ENUM(A,B) atawa name:INT
+            if (type === 'enum' || type === 'char') {
+                if (!args) {
+                    alert('Harap isi detail untuk kolom ' + name + ' (' + type + ')');
+                    isValid = false;
+                    return;
+                }
+                fieldsArray.push(`${name}:${type}(${args})`);
+            } else {
+                fieldsArray.push(`${name}:${type}`);
+            }
+        }
+      });
+
+      if(!isValid) return;
+
+      const res = await API.post("/schema/create", { table: tableName, fields: fieldsArray });
+
+      if (res.success) {
+        alertBox.innerHTML = `<div class="alert alert-success">✅ Table <b>${tableName}</b> created!</div>`;
+        let count = parseInt(document.getElementById('statTables').innerText) + 1;
+        document.getElementById('statTables').innerText = count;
+        saveState('maung_stat_tables', count);
+        
+        generateInsertForm(tableName, fieldsArray);
+      } else {
+        alertBox.innerHTML = `<div class="alert alert-error">❌ ${res.error}</div>`;
+        document.getElementById('insertDataContainer').style.display = 'none';
+      }
+    }
+
+    // --- 4. INSERT FORM GENERATOR (UPDATED) ---
+    function generateInsertForm(tableName, fields) {
+      const container = document.getElementById('insertDataContainer');
+      container.style.display = 'block'; 
+      
+      let inputsHtml = '';
+      fields.forEach((field, index) => {
+        // field format: "name:TYPE" or "name:TYPE(ARGS)"
+        // Split manual pikeun aman
+        const separatorIdx = field.indexOf(':');
+        const colName = field.substring(0, separatorIdx);
+        const colTypeFull = field.substring(separatorIdx + 1).toUpperCase();
+        
+        let inputHtml = '';
+
+        if (colTypeFull.startsWith('ENUM')) {
+            // Extract ENUM(A,B) -> [A, B]
+            const content = colTypeFull.substring(colTypeFull.indexOf('(') + 1, colTypeFull.lastIndexOf(')'));
+            const options = content.split(',');
+            
+            let opts = options.map(o => `<option value="${o}">${o}</option>`).join('');
+            inputHtml = `<select class="insert-input" required>${opts}</select>`;
+        
+        } else if (colTypeFull === 'BOOL') {
+            inputHtml = `<select class="insert-input" required><option value="true">True</option><option value="false">False</option></select>`;
+        
+        } else if (colTypeFull === 'DATE') {
+            inputHtml = `<input type="date" class="insert-input" required>`;
+        
+        } else if (colTypeFull === 'INT' || colTypeFull === 'FLOAT') {
+            inputHtml = `<input type="number" step="any" class="insert-input" placeholder="0" required>`;
+        
+        } else {
+            // String, Text, Char
+            inputHtml = `<input type="text" class="insert-input" placeholder="..." required>`;
+        }
+
+        inputsHtml += `
+          <div class="form-group">
+            <label style="font-size:0.85rem; color:var(--text-muted);">
+                ${colName} <span class="type-badge">${colTypeFull}</span>
+            </label>
+            ${inputHtml}
+          </div>
+        `;
+      });
+
+      container.innerHTML = `
+        <h3 style="color:var(--primary); margin-bottom:15px;">Insert Data into '${tableName}'</h3>
+        <form onsubmit="event.preventDefault(); submitInsertData('${tableName}');">
+          <div class="insert-grid">${inputsHtml}</div>
+          <button type="submit" class="btn-primary" style="margin-top: 20px; width: 100%; background-color: var(--success);">+ Insert Row</button>
+        </form>
+        <div id="insertResult"></div>
+      `;
+    }
+
+    async function submitInsertData(tableName) {
+       const inputs = document.querySelectorAll('.insert-input');
+       const values = Array.from(inputs).map(input => input.value);
+       const dataString = values.join('|');
+       const query = `simpen ${tableName} ${dataString}`;
+       
+       const resultDiv = document.getElementById('insertResult');
+       resultDiv.innerHTML = '<div style="margin-top:10px; color:var(--text-muted);">⏳ Inserting...</div>';
+       
+       const res = await API.post("/query", { query: query });
+       
+       if(res.success) {
+          resultDiv.innerHTML = `<div class="alert alert-success">✅ Data inserted!</div>`;
+          // Reset inputs (keep selects at index 0)
+          inputs.forEach(input => {
+              if(input.tagName === 'SELECT') input.selectedIndex = 0;
+              else input.value = '';
+          });
+          let newCount = parseInt(document.getElementById('statQueries').innerText) + 1;
+          document.getElementById('statQueries').innerText = newCount;
+          saveState('maung_stat_queries', newCount);
+       } else {
+          resultDiv.innerHTML = `<div class="alert alert-error">❌ ${res.error}</div>`;
+       }
+    }
+  </script>
+</body>
+</html>

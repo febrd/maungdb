@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MaungDB - Login</title>
+  <link rel="stylesheet" href="/static/css/style_main.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-left">
+      <div class="particle" style="left: 10%; width: 20px; height: 20px; animation-duration: 15s;"></div>
+      <div class="particle" style="left: 70%; width: 50px; height: 50px; animation-duration: 25s; animation-delay: -5s;"></div>
+      <div class="particle" style="left: 40%; width: 30px; height: 30px; animation-duration: 18s; animation-delay: -10s;"></div>
+      
+      <h1>🐯 MaungDB</h1>
+      <p>Database Lokal, Performa Global.</p>
+    </div>
+
+    <div class="login-right">
+      <div class="login-form-wrapper">
+        <h2>Wilujeng Sumping</h2>
+        <p class="subtitle">Masuk untuk mengelola database Anda.</p>
+        
+        <div id="loginAlert" class="alert alert-error" style="display: none;"></div>
+
+        <form onsubmit="event.preventDefault(); login();">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" placeholder="Contoh: maung" required autofocus />
+          </div>
+          
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="••••••••" required />
+          </div>
+          
+          <button type="submit" class="btn-primary">Masuk Dashboard</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/auth.js"></script>
+</body>
+</html>
