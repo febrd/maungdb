@@ -1,6 +1,6 @@
 # 🐯 MaungDB
 
-**MaungDB** is a lightweight, fast, and *CLI-first* file-based relational database. Built purely using **Go (Golang)**, MaungDB embraces local wisdom with syntax based on the Sundanese language (`SIMPEN`, `TINGALI`, `OMEAN`) yet remains powerful with modern *Type System*, *RBAC Security*, and a *Web Dashboard UI*.
+**MaungDB** is a lightweight, fast, and MaungDB embraces local wisdom with syntax based on the Sundanese language (`SIMPEN`, `TINGALI`, `OMEAN`) yet remains powerful with modern *Type System*, *RBAC Security*, and a *Web Dashboard UI*.
 
 > *"Database buatan urang, pikeun dunya. (Database made by us, for the world)."*
 
