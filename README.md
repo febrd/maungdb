@@ -12,17 +12,18 @@
 
 *(Please click the image below to play the demo video)*
 
-> *Replace `YOUR_VIDEO_ID` with your YouTube demo video ID.*
+[![MaungDB Demo](https://img.youtube.com/vi/J4IThAnQjWo/0.jpg)](https://www.youtube.com/watch?v=J4IThAnQjWo)
+
 
 ### Dashboard Screenshots
 
 | **Login Screen** | **Dashboard & Stats** |
 | --- | --- |
-| <img src="[https://github.com/febrd/maungdb/blob/main/login.png](https://github.com/febrd/maungdb/blob/main/login.png)" alt="Login Screen" width="200"> | <img src="[https://github.com/febrd/maungdb/blob/main/dashboard.png](https://github.com/febrd/maungdb/blob/main/dashboard.png)" alt="Dashboard" width="400"> |
+| <img src="https://github.com/febrd/maungdb/blob/main/login.png" alt="Login Screen" width="200"> | <img src="https://github.com/febrd/maungdb/blob/main/dashboard.png" alt="Dashboard" width="400"> |
 
 | **Query Console** | **Table Designer** |
 | --- | --- |
-| <img src="[https://github.com/febrd/maungdb/blob/main/query_console.png](https://github.com/febrd/maungdb/blob/main/query_console.png)" alt="Query Console" width="400"> | <img src="[https://github.com/febrd/maungdb/blob/main/tabel_designer.png](https://github.com/febrd/maungdb/blob/main/tabel_designer.png)" alt="Table Designer" width="400"> |
+| <img src="https://github.com/febrd/maungdb/blob/main/query_console.png" alt="Query Console" width="400"> | <img src="https://github.com/febrd/maungdb/blob/main/tabel_designer.png" alt="Table Designer" width="400"> |
 
 ---
 
