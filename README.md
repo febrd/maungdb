@@ -54,7 +54,7 @@ graph TD;
 Run the following command in your terminal for automatic installation:
 
 ```bash
-curl -fsSL [https://raw.githubusercontent.com/febrd/maungdb/main/install.sh](https://raw.githubusercontent.com/febrd/maungdb/main/install.sh) | bash
+curl -fsSL https://raw.githubusercontent.com/febrd/maungdb/main/install.sh | bash
 
 
 ```
