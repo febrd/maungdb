@@ -1,4 +1,4 @@
-![MaungDB Logo](https://i.ibb.co.com/nMbKL85p/Gemini-Generated-Image-a4fvs9a4fvs9a4fv.png)
+<img src="https://i.ibb.co.com/nMbKL85p/Gemini-Generated-Image-a4fvs9a4fvs9a4fv.png" alt="Logo MaungDB" width="500">
 
 # 🐯 MaungDB
 
