@@ -91,10 +91,6 @@ func Append(table, data string) error {
 	return err
 }
 
-// =======================
-// READ ALL DATA
-// =======================
-
 func ReadAll(table string) ([]string, error) {
 	u, err := auth.CurrentUser()
 	if err != nil {
@@ -125,15 +121,11 @@ func ReadAll(table string) ([]string, error) {
 	return rows, nil
 }
 
-// =======================
-// DEFAULT USER INIT
-// =======================
-
 func initDefaultUser(systemPath string) error {
 	userFile := filepath.Join(systemPath, "users.maung")
 
 	if _, err := os.Stat(userFile); err == nil {
-		return nil // jangan overwrite
+		return nil 
 	}
 
 	hash, _ := bcrypt.GenerateFromPassword(
@@ -152,7 +144,6 @@ func initDefaultUser(systemPath string) error {
 }
 
 
-// Anyar: Rewrite (Nulis ulang kabeh data table)
 func Rewrite(table string, rows []string) error {
 	u, err := auth.CurrentUser()
 	if err != nil {
@@ -164,13 +155,11 @@ func Rewrite(table string, rows []string) error {
 		return err
 	}
 
-	// Gabungkeun deui jadi string panjang
 	content := strings.Join(rows, "\n")
 	
-	// Tulis (Overwrite file lama)
-	// Mun rows kosong, tulis string kosong (truncate)
+	
 	if len(rows) > 0 {
-		content += "\n" // Tambah newline di akhir
+		content += "\n" 
 	}
 
 	return os.WriteFile(path, []byte(content), 0644)

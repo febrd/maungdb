@@ -7,15 +7,15 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time" // PENTING: Tambahkeun library time
+	"time" 
 
 	"github.com/febrd/maungdb/internal/config"
 )
 
 type Column struct {
 	Name string
-	Type string   // "STRING", "INT", "FLOAT", "BOOL", "DATE", "ENUM", "CHAR", "TEXT"
-	Args []string // Nyimpen detail jiga panjang CHAR(5) atawa opsi ENUM(A,B)
+	Type string   
+	Args []string 
 }
 
 type Definition struct {
@@ -23,37 +23,30 @@ type Definition struct {
 	Perms   map[string][]string
 }
 
-// Create schema anyar
-// Input: fieldsRaw = ["nama:STRING", "gender:ENUM(L,P)", "kode:CHAR(5)", "lahir:DATE"]
+
 func Create(database, table string, fieldsRaw []string, perms map[string][]string) error {
 	path := filepath.Join(config.DataDir, "db_"+database, table+".schema")
 
 	var headerParts []string
 	
 	for _, f := range fieldsRaw {
-		// Validasi format dasar "nama:tipe"
-		parts := strings.SplitN(f, ":", 2) // SplitN supaya aman mun aya ':' dina argumen
+		parts := strings.SplitN(f, ":", 2) 
 		if len(parts) != 2 {
 			return errors.New("format salah, gunakeun 'kolom:tipe'")
 		}
 
 		colName := parts[0]
-		fullType := strings.ToUpper(parts[1]) // Misal: "ENUM(L,P)"
-
-		// Validasi Tipe Data
+		fullType := strings.ToUpper(parts[1]) 
 		baseType := parseBaseType(fullType)
 		if !isValidType(baseType) {
 			return errors.New("tipe data teu didukung: " + baseType)
 		}
 
-		// Simpen format aslina, misal "gender:ENUM(L,P)"
 		headerParts = append(headerParts, colName+":"+fullType)
 	}
 
-	// 1. Tulis Header (Ganti koma jadi PIPE '|' supaya aman keur ENUM)
 	content := strings.Join(headerParts, "|") + "\n"
 
-	// 2. Tulis Permissions
 	for role, actions := range perms {
 		content += fmt.Sprintf("%s=%s\n", role, strings.Join(actions, ","))
 	}
@@ -61,7 +54,6 @@ func Create(database, table string, fieldsRaw []string, perms map[string][]strin
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
-// Load maca schema
 func Load(database, table string) (*Definition, error) {
 	path := filepath.Join(config.DataDir, "db_"+database, table+".schema")
 
@@ -75,8 +67,7 @@ func Load(database, table string) (*Definition, error) {
 		return nil, errors.New("schema ruksak")
 	}
 
-	// Parse Header: "nama:STRING|gender:ENUM(L,P)|kode:CHAR(5)"
-	// Awas: Ayeuna dipisah ku PIPE "|"
+
 	rawCols := strings.Split(lines[0], "|")
 	var columns []Column
 
@@ -84,7 +75,7 @@ func Load(database, table string) (*Definition, error) {
 		parts := strings.SplitN(rc, ":", 2)
 		if len(parts) == 2 {
 			colName := parts[0]
-			fullType := parts[1] // "ENUM(L,P)" atawa "INT"
+			fullType := parts[1] 
 			
 			baseType, args := parseTypeAndArgs(fullType)
 			
@@ -101,7 +92,6 @@ func Load(database, table string) (*Definition, error) {
 		Perms:   make(map[string][]string),
 	}
 
-	// Parse Permissions
 	for _, line := range lines[1:] {
 		if line == "" { continue }
 		parts := strings.Split(line, "=")
@@ -113,7 +103,6 @@ func Load(database, table string) (*Definition, error) {
 	return def, nil
 }
 
-// ValidateRow mastikeun data nu asup valid
 func (d *Definition) ValidateRow(data string) error {
 	values := strings.Split(data, "|")
 	if len(values) != len(d.Columns) {
@@ -137,19 +126,15 @@ func (d *Definition) ValidateRow(data string) error {
 				return fmt.Errorf("kolom '%s' kudu BOOL (true/false)", col.Name)
 			}
 		case "DATE":
-			// Format YYYY-MM-DD
 			if _, err := time.Parse("2006-01-02", val); err != nil {
 				return fmt.Errorf("kolom '%s' kudu DATE (YYYY-MM-DD)", col.Name)
 			}
 		case "CHAR":
-			// CHAR(5) -> kudu pas 5 karakter (atawa max 5, bebas aturanana)
-			// Di dieu urang jieun MAX length
 			limit, _ := strconv.Atoi(col.Args[0])
 			if len(val) > limit {
 				return fmt.Errorf("kolom '%s' maksimal %d karakter", col.Name, limit)
 			}
 		case "ENUM":
-			// ENUM(A,B) -> val kudu salah sahiji ti A atawa B
 			valid := false
 			for _, opt := range col.Args {
 				if val == opt {
@@ -161,7 +146,7 @@ func (d *Definition) ValidateRow(data string) error {
 				return fmt.Errorf("kolom '%s' kudu salah sahiji tina: %v", col.Name, col.Args)
 			}
 		case "STRING", "TEXT":
-			// Bebas
+
 		default:
 			return fmt.Errorf("tipe data teu dikenal: %s", col.Type)
 		}
@@ -169,9 +154,6 @@ func (d *Definition) ValidateRow(data string) error {
 	return nil
 }
 
-// === HELPER FUNCTIONS ===
-
-// parseBaseType nyokot "ENUM" tina "ENUM(A,B)"
 func parseBaseType(fullType string) string {
 	idx := strings.Index(fullType, "(")
 	if idx == -1 {
@@ -180,7 +162,6 @@ func parseBaseType(fullType string) string {
 	return fullType[:idx]
 }
 
-// parseTypeAndArgs misahkeun "ENUM(A,B)" jadi "ENUM" jeung ["A", "B"]
 func parseTypeAndArgs(fullType string) (string, []string) {
 	idxStart := strings.Index(fullType, "(")
 	idxEnd := strings.LastIndex(fullType, ")")
@@ -190,9 +171,8 @@ func parseTypeAndArgs(fullType string) (string, []string) {
 	}
 
 	base := fullType[:idxStart]
-	content := fullType[idxStart+1 : idxEnd] // "A,B"
+	content := fullType[idxStart+1 : idxEnd] 
 	
-	// Split eusi kurung ku koma
 	args := strings.Split(content, ",")
 	return base, args
 }
@@ -206,7 +186,6 @@ func isValidType(t string) bool {
 }
 
 func (d *Definition) Can(role, action string) bool {
-    // ... (kode Can nu kamari, teu robah) ...
 	if role == "supermaung" { return true }
 	allowedRoles, ok := d.Perms[action]
 	if !ok { return false }
