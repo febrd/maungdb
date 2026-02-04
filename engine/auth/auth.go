@@ -11,24 +11,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-//
-// =======================
-// USER MODEL
-// =======================
-//
-
 type User struct {
 	Username  string
 	Role      string
 	Databases []string
-	Database  string // active db
+	Database  string 
 }
-
-//
-// =======================
-// PATH HELPERS
-// =======================
-//
 
 func userFilePath() string {
 	return filepath.Join(
@@ -45,12 +33,6 @@ func sessionFilePath() string {
 		config.SessionFile,
 	)
 }
-
-//
-// =======================
-// LOGIN / LOGOUT
-// =======================
-//
 
 func Login(username, password string) error {
 	file, err := os.Open(userFilePath())
@@ -71,7 +53,7 @@ func Login(username, password string) error {
 		if user.Username == username &&
 			bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil {
 
-			user.Database = "" // active DB kosong saat login
+			user.Database = "" 
 			return writeSession(user)
 		}
 	}
@@ -82,12 +64,6 @@ func Login(username, password string) error {
 func Logout() error {
 	return os.Remove(sessionFilePath())
 }
-
-//
-// =======================
-// SESSION
-// =======================
-//
 
 func writeSession(u *User) error {
 	dbs := strings.Join(u.Databases, ",")
@@ -132,7 +108,6 @@ func SetDatabase(db string) error {
 		return err
 	}
 
-	// supermaung bebas
 	if u.Role != "supermaung" {
 		allowed := false
 		for _, d := range u.Databases {
@@ -149,12 +124,6 @@ func SetDatabase(db string) error {
 	u.Database = db
 	return writeSession(u)
 }
-
-//
-// =======================
-// ROLE & DATABASE ENFORCEMENT
-// =======================
-//
 
 func RequireRole(minRole string) error {
 	u, err := CurrentUser()
@@ -180,12 +149,6 @@ func RequireDatabase() error {
 	return nil
 }
 
-//
-// =======================
-// USER PARSER
-// =======================
-//
-
 func parseUser(line string) (*User, string, error) {
 	parts := strings.Split(line, "|")
 	if len(parts) < 4 {
@@ -203,12 +166,6 @@ func parseUser(line string) (*User, string, error) {
 		Databases: dbs,
 	}, parts[1], nil
 }
-
-//
-// =======================
-// USER MANAGEMENT
-// =======================
-//
 
 func CreateUser(name, pass, role string) error {
 	hash, _ := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
@@ -239,12 +196,6 @@ func ChangePassword(username, newpass string) error {
 func ListUsers() ([]string, error) {
 	return readAllUsers()
 }
-
-//
-// =======================
-// USER FILE HELPERS
-// =======================
-//
 
 func appendToUserFile(line string) error {
 	f, err := os.OpenFile(userFilePath(), os.O_APPEND|os.O_WRONLY, 0644)

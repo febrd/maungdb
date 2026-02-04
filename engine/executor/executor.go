@@ -3,6 +3,7 @@ package executor
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,8 @@ type ExecutionResult struct {
 
 func Execute(cmd *parser.Command) (*ExecutionResult, error) {
 	switch cmd.Type {
+	case parser.CmdCreate:
+		return execCreate(cmd)
 	case parser.CmdInsert:
 		return execInsert(cmd)
 	case parser.CmdSelect:
@@ -33,9 +36,54 @@ func Execute(cmd *parser.Command) (*ExecutionResult, error) {
 	}
 }
 
-// ===========================
-// 1. INSERT (SIMPEN)
-// ===========================
+func execCreate(cmd *parser.Command) (*ExecutionResult, error) {
+	user, _ := auth.CurrentUser()
+	fields := splitColumns(cmd.Data)
+
+	perms := map[string][]string{
+		"read":  {"user", "admin", "supermaung"},
+		"write": {"admin", "supermaung"},
+	}
+
+	if err := schema.Create(user.Database, cmd.Table, fields, perms); err != nil {
+		return nil, err
+	}
+
+	return &ExecutionResult{Message: fmt.Sprintf("✅ Tabel '%s' parantos didamel!", cmd.Table)}, nil
+}
+
+func splitColumns(input string) []string {
+	var fields []string
+	var currentField strings.Builder
+	parenCount := 0 
+
+	for _, char := range input {
+		switch char {
+		case '(':
+			parenCount++
+			currentField.WriteRune(char)
+		case ')':
+			parenCount--
+			currentField.WriteRune(char)
+		case ',':
+			if parenCount == 0 {
+				fields = append(fields, strings.TrimSpace(currentField.String()))
+				currentField.Reset()
+			} else {
+				currentField.WriteRune(char)
+			}
+		default:
+			currentField.WriteRune(char)
+		}
+	}
+	
+	if currentField.Len() > 0 {
+		fields = append(fields, strings.TrimSpace(currentField.String()))
+	}
+
+	return fields
+}
+
 func execInsert(cmd *parser.Command) (*ExecutionResult, error) {
 	user, _ := auth.CurrentUser()
 
@@ -48,7 +96,6 @@ func execInsert(cmd *parser.Command) (*ExecutionResult, error) {
 		return nil, errors.New("teu boga hak nulis")
 	}
 
-	// Validasi Tipe Data sesuai Schema
 	if err := s.ValidateRow(cmd.Data); err != nil {
 		return nil, err
 	}
@@ -62,82 +109,104 @@ func execInsert(cmd *parser.Command) (*ExecutionResult, error) {
 	}, nil
 }
 
-// ===========================
-// 2. SELECT (TINGALI)
-// ===========================
 func execSelect(cmd *parser.Command) (*ExecutionResult, error) {
 	user, _ := auth.CurrentUser()
-
 	s, err := schema.Load(user.Database, cmd.Table)
-	if err != nil {
-		return nil, err
+	if err != nil { 
+		return nil, err 
 	}
-
-	if !s.Can(user.Role, "read") {
-		return nil, errors.New("teu boga hak maca")
+	if !s.Can(user.Role, "read") { 
+		return nil, errors.New("teu boga hak maca") 
 	}
 
 	rawRows, err := storage.ReadAll(cmd.Table)
-	if err != nil {
-		return nil, err
+	if err != nil { 
+		return nil, err 
 	}
 
 	var parsedRows [][]string
 	fieldNames := s.GetFieldNames()
 
 	for _, raw := range rawRows {
-		if raw == "" { continue } // Skip baris kosong
+		if raw == "" { continue }
 		cols := strings.Split(raw, "|")
 
-		// Lamun euweuh WHERE, asupkeun kabeh
-		if len(cmd.Where) == 0 {
-			parsedRows = append(parsedRows, cols)
-			continue
-		}
-
-		// Logic WHERE (Multi Condition)
-		matchAll := true
-		
-		// Evaluasi kondisi kahiji
-		currentMatch := evaluateOne(cols, s.Columns, cmd.Where[0])
-
-		// Loop pikeun kondisi saterusna (DAN / ATAU)
-		for i := 0; i < len(cmd.Where); i++ {
-			cond := cmd.Where[i]
-
-			// Mun ieu kondisi terakhir, hasilna geus dicekel currentMatch
-			if cond.LogicOp == "" {
-				matchAll = currentMatch
-				break
-			}
-
-			// Evaluasi kondisi saterusna
-			if i+1 < len(cmd.Where) {
+		if len(cmd.Where) > 0 {
+			matchAll := true
+			currentMatch := evaluateOne(cols, s.Columns, cmd.Where[0])
+			for i := 0; i < len(cmd.Where); i++ {
+				cond := cmd.Where[i]
+				if cond.LogicOp == "" { 
+					matchAll = currentMatch; break 
+				}
 				nextResult := evaluateOne(cols, s.Columns, cmd.Where[i+1])
-
-				if cond.LogicOp == "sareng" || cond.LogicOp == "SARENG" {
-					currentMatch = currentMatch && nextResult
-				} else if cond.LogicOp == "ATAWA" || cond.LogicOp == "atawa" {
-					currentMatch = currentMatch || nextResult
+				if cond.LogicOp == "SARENG" || cond.LogicOp == "sareng"  { 
+					currentMatch = currentMatch && nextResult 
+				} else if cond.LogicOp == "ATAWA" || cond.LogicOp == "atawa" { 
+					currentMatch = currentMatch || nextResult 
 				}
 			}
+			if !matchAll { continue }
 		}
-		matchAll = currentMatch
-
-		if matchAll {
-			parsedRows = append(parsedRows, cols)
-		}
+		parsedRows = append(parsedRows, cols)
 	}
+
+	if cmd.OrderBy != "" {
+		colIdx := indexOf(cmd.OrderBy, fieldNames)
+		if colIdx == -1 { 
+			return nil, fmt.Errorf("kolom '%s' teu kapanggih", cmd.OrderBy) 
+		}
+		
+		colType := s.Columns[colIdx].Type
+
+		sort.Slice(parsedRows, func(i, j int) bool {
+			valA := parsedRows[i][colIdx]
+			valB := parsedRows[j][colIdx]
+			isLess := false
+			
+			switch colType {
+			case "INT":
+				a, _ := strconv.Atoi(valA)
+				b, _ := strconv.Atoi(valB)
+				isLess = a < b
+			case "FLOAT":
+				a, _ := strconv.ParseFloat(valA, 64)
+				b, _ := strconv.ParseFloat(valB, 64)
+				isLess = a < b
+			default: 
+				isLess = valA < valB
+			}
+
+			if cmd.OrderDesc {
+				return !isLess 
+			}
+			return isLess 
+		})
+	}
+
+	totalRows := len(parsedRows)
+	start := 0
+	end := totalRows
+
+	if cmd.Offset > 0 {
+		start = cmd.Offset
+		if start > totalRows { start = totalRows }
+	}
+
+	if cmd.Limit > 0 {
+		end = start + cmd.Limit
+		if end > totalRows { end = totalRows }
+	}
+
+	finalRows := parsedRows[start:end]
 
 	return &ExecutionResult{
 		Columns: fieldNames,
-		Rows:    parsedRows,
+		Rows:    finalRows,
 	}, nil
 }
 
-// ===========================
-// 3. UPDATE (OMEAN)
-// ===========================
+
 func execUpdate(cmd *parser.Command) (*ExecutionResult, error) {
 	user, _ := auth.CurrentUser()
 	s, err := schema.Load(user.Database, cmd.Table)
@@ -154,23 +223,18 @@ func execUpdate(cmd *parser.Command) (*ExecutionResult, error) {
 		if raw == "" { continue }
 		cols := strings.Split(raw, "|")
 
-		// Cek WHERE
 		shouldUpdate := false
 		if len(cmd.Where) == 0 {
-			shouldUpdate = true // Mun euweuh where, update kabeh!
+			shouldUpdate = true 
 		} else {
-			// Reuse logic evaluateOne (Sederhana: anggap AND kabeh keur update MVP)
-			// Di dieu urang pake logic nu sami jeung Select
 			currentMatch := evaluateOne(cols, s.Columns, cmd.Where[0])
 			shouldUpdate = currentMatch
 		}
 
 		if shouldUpdate {
-			// Lakukan perubahan data
 			for colName, newVal := range cmd.Updates {
 				idx := indexOf(colName, s.GetFieldNames())
 				if idx != -1 {
-					// Disini idealna validasi tipe data heula
 					cols[idx] = newVal 
 				}
 			}
@@ -180,7 +244,6 @@ func execUpdate(cmd *parser.Command) (*ExecutionResult, error) {
 		newRows = append(newRows, strings.Join(cols, "|"))
 	}
 
-	// Tulis ulang file database
 	if err := storage.Rewrite(cmd.Table, newRows); err != nil {
 		return nil, err
 	}
@@ -188,9 +251,6 @@ func execUpdate(cmd *parser.Command) (*ExecutionResult, error) {
 	return &ExecutionResult{Message: fmt.Sprintf("✅ %d data geus diomean", updatedCount)}, nil
 }
 
-// ===========================
-// 4. DELETE (MICEUN)
-// ===========================
 func execDelete(cmd *parser.Command) (*ExecutionResult, error) {
 	user, _ := auth.CurrentUser()
 	s, err := schema.Load(user.Database, cmd.Table)
@@ -214,23 +274,18 @@ func execDelete(cmd *parser.Command) (*ExecutionResult, error) {
 
 		if shouldDelete {
 			deletedCount++
-			continue // Skip (ulah diasupkeun ka newRows) -> Ieu nu ngahapus
+			continue 
 		}
 		
 		newRows = append(newRows, raw)
 	}
 
-	// Tulis ulang file database
 	if err := storage.Rewrite(cmd.Table, newRows); err != nil {
 		return nil, err
 	}
 
 	return &ExecutionResult{Message: fmt.Sprintf("✅ %d data geus dipiceun", deletedCount)}, nil
 }
-
-// ===========================
-// HELPERS
-// ===========================
 
 func evaluateOne(row []string, cols []schema.Column, cond parser.Condition) bool {
 	idx := -1
@@ -259,20 +314,25 @@ func indexOf(field string, fields []string) int {
 	}
 	return -1
 }
-// match ayeuna ngalakukeun Type Casting Lengkep (INT, FLOAT, BOOL, DATE, ENUM, jsb)
 func match(a, op, b, colType string) bool {
+	if strings.ToUpper(op) == "JIGA" {
+		return strings.Contains(strings.ToLower(a), strings.ToLower(b))
+	}
+
 	switch colType {
 	case "INT":
 		numA, errA := strconv.Atoi(a)
 		numB, errB := strconv.Atoi(b)
-		// Mun gagal convert (misal data ruksak), anggap false
-		if errA != nil || errB != nil { return false }
+		
+		if errA != nil || errB != nil {
+			return false
+		}
 
 		switch op {
-		case "=": return numA == numB
+		case "=":  return numA == numB
 		case "!=": return numA != numB
-		case ">": return numA > numB
-		case "<": return numA < numB
+		case ">":  return numA > numB
+		case "<":  return numA < numB
 		case ">=": return numA >= numB
 		case "<=": return numA <= numB
 		}
@@ -280,38 +340,36 @@ func match(a, op, b, colType string) bool {
 	case "FLOAT":
 		fA, errA := strconv.ParseFloat(a, 64)
 		fB, errB := strconv.ParseFloat(b, 64)
-		if errA != nil || errB != nil { return false }
+		
+		if errA != nil || errB != nil {
+			return false
+		}
 
 		switch op {
-		case "=": return fA == fB
+		case "=":  return fA == fB
 		case "!=": return fA != fB
-		case ">": return fA > fB
-		case "<": return fA < fB
+		case ">":  return fA > fB
+		case "<":  return fA < fB
 		case ">=": return fA >= fB
 		case "<=": return fA <= fB
 		}
 
 	case "BOOL":
-		// Bool ngan ukur bisa Cek Sarua (=) atawa Teu Sarua (!=)
-		// Teu asup akal mun "true > false"
 		if op == "=" { return a == b }
 		if op == "!=" { return a != b }
 		return false
 
-	// GROUP: Tipe data nu dibandingkeun secara Text / Leksikal
-	// DATE (YYYY-MM-DD) aman dibandingkeun siga string
-	// CHAR, ENUM, TEXT, STRING sami sadayana
+
 	case "STRING", "TEXT", "CHAR", "ENUM", "DATE":
 		switch op {
-		case "=": return a == b
+		case "=":  return a == b
 		case "!=": return a != b
-		case ">": return a > b
-		case "<": return a < b
+		case ">":  return a > b
+		case "<":  return a < b
 		case ">=": return a >= b
 		case "<=": return a <= b
 		}
 
-	// Default Fallback (bisi aya tipe nu kaliwat)
 	default:
 		return false
 	}

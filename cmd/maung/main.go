@@ -84,7 +84,7 @@ func main() {
             port = os.Args[2]
         }
         startServer(port)
-		
+
 	default:
 		help()
 	}
@@ -415,20 +415,48 @@ func initDB() {
 }
 
 func help() {
-    fmt.Println("MaungDB Cheat Sheet")
-    fmt.Println("Paréntah: (Lamun di CLI ulah pake maung)")
-    fmt.Println("  maung init")
-	fmt.Println("  maung server <port> (default: 7070)")
-    fmt.Println("  maung createuser <name> <pass> <role>")
-    fmt.Println("  maung login <user> <pass>")
-    fmt.Println("  maung setdb <user> <db1,db2>")
-    fmt.Println("  maung passwd <user> <newpass>")
-    fmt.Println("  maung listuser")
-    fmt.Println("  maung logout")
-    fmt.Println("  maung whoami")
-    fmt.Println("  maung createdb <database>")
-    fmt.Println("  maung use <database>")
-	fmt.Println("  maung schema create <table> <field:type,field:type>")
-    fmt.Println("  maung simpen <table> <data>")
-    fmt.Println("  maung tingali <table> [dimana <field> <op> <value>]")
+	fmt.Println("\n🐯  MAUNG DB v2.0 - CHEAT SHEET  🐯")
+	fmt.Println("=======================================")
+
+	fmt.Println("\n🛠️  PARÉNTAH SISTEM (System Commands)")
+	fmt.Println("  maung init                       : Inisialisasi folder data (ngadamel kandang)")
+	fmt.Println("  maung server [port]              : Ngahurungkeun server (default port: 7070)")
+	fmt.Println("  maung login <user> <pass>        : Masuk sateuacan ngakses database")
+	fmt.Println("  maung logout                     : Keluar tina sési")
+	fmt.Println("  maung whoami                     : Cek status login")
+	fmt.Println("  maung listuser                   : Ningali daptar user")
+	fmt.Println("  maung createuser <u,p,role>      : Ngadamel user (admin/supermaung)")
+	fmt.Println("  maung passwd <user> <pass>       : Ganti password user")
+	fmt.Println("  maung setdb <user> <db1,db2>     : Mere akses database ka user")
+
+	fmt.Println("\n🗄️  MANAJEMEN DATABASE & SKEMA")
+	fmt.Println("  maung createdb <name>            : Ngadamel database anyar")
+	fmt.Println("  maung use <name>                 : Milih database nu bade dianggo")
+	fmt.Println("  maung schema create <table> <cols>: Ngadamel tabel & struktur kolom")
+	fmt.Println("      Conto: maung schema create pegawai id:INT,nama:STRING,gender:ENUM(L,P)")
+
+	fmt.Println("\n📝  MANIPULASI DATA (CRUD)")
+	fmt.Println("  maung query \"<sintaks>\"          : Ngajalankeun paréntah MaungQL")
+	fmt.Println("  maung simpen <table> <data>      : Nambahkeun data (Delimiter: |)")
+	fmt.Println("      Conto: maung simpen pegawai 1|Asep|L")
+
+	fmt.Println("\n🧠  KAMUS MAUNGQL v2 (Query Syntax)")
+	fmt.Println("  TINGALI (SELECT)                 : TINGALI pegawai")
+	fmt.Println("  OMEAN (UPDATE)                   : OMEAN pegawai JADI gaji=9jt DIMANA id=1")
+	fmt.Println("  MICEUN (DELETE)                  : MICEUN TI pegawai DIMANA id=1")
+	fmt.Println("  DIMANA (WHERE)                   : ... DIMANA divisi=IT")
+	fmt.Println("  JIGA (LIKE/SEARCH)               : ... DIMANA nama JIGA 'sep'")
+	fmt.Println("  RUNTUYKEUN (ORDER BY)            : ... RUNTUYKEUN gaji TI_LUHUR")
+	fmt.Println("  SAKADAR (LIMIT)                  : ... SAKADAR 5")
+	fmt.Println("  LIWATAN (OFFSET)                 : ... LIWATAN 10")
+	fmt.Println("  SARENG / ATAWA (LOGIC)               : ... DIMANA umur>20 SARENG aktif=true")
+
+	fmt.Println("\n💎  TIPE DATA (Data Types)")
+	fmt.Println("  INT, FLOAT                       : Angka (Bulat / Desimal)")
+	fmt.Println("  STRING, TEXT                     : Teks (Pondok / Panjang)")
+	fmt.Println("  BOOL                             : Bener/Salah (true/false)")
+	fmt.Println("  DATE                             : Tanggal (YYYY-MM-DD)")
+	fmt.Println("  CHAR(n)                          : Karakter Panjang Tetap")
+	fmt.Println("  ENUM(a,b,c)                      : Pilihan Terbatas")
+	fmt.Println("=======================================")
 }
