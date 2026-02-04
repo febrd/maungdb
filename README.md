@@ -1,4 +1,3 @@
-# 🐯 MaungDB
 
 <img src="https://github.com/febrd/maungdb/blob/main/logonya.png" alt="Logo MaungDB" width="2000">
 
