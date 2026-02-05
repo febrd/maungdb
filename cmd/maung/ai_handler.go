@@ -12,10 +12,6 @@ import (
 	"github.com/febrd/maungdb/engine/auth"
 )
 
-// ===========================
-// OpenRouter API Structs
-// ===========================
-
 type OpenRouterMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
@@ -59,9 +55,6 @@ type AIChatResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
-// ===========================
-// AI Handler
-// ===========================
 
 func handleAIChat(w http.ResponseWriter, r *http.Request) {
 	setupHeader(w)
@@ -70,14 +63,12 @@ func handleAIChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user is logged in
 	user, err := auth.CurrentUser()
 	if err != nil {
 		sendAIError(w, "Anda harus login terlebih dahulu")
 		return
 	}
 
-	// Decode request
 	var req AIChatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		sendAIError(w, "Format JSON salah")
@@ -89,17 +80,13 @@ func handleAIChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build system prompt with context
 	systemPrompt := buildSystemPrompt(user.Username, user.Role, user.Database)
 
-	// Prepare messages for OpenRouter
 	messages := []OpenRouterMessage{
 		{Role: "system", Content: systemPrompt},
 	}
 
-	// Add history if provided
 	if len(req.History) > 0 {
-		// Limit history to last 10 messages to avoid token limit
 		startIdx := 0
 		if len(req.History) > 10 {
 			startIdx = len(req.History) - 10
@@ -107,29 +94,22 @@ func handleAIChat(w http.ResponseWriter, r *http.Request) {
 		messages = append(messages, req.History[startIdx:]...)
 	}
 
-	// Add current user message
 	messages = append(messages, OpenRouterMessage{
 		Role:    "user",
 		Content: req.Message,
 	})
 
-	// Call OpenRouter API
 	reply, err := callOpenRouter(messages)
 	if err != nil {
 		sendAIError(w, "AI Error: "+err.Error())
 		return
 	}
 
-	// Send success response
 	_ = json.NewEncoder(w).Encode(AIChatResponse{
 		Success: true,
 		Reply:   reply,
 	})
 }
-
-// ===========================
-// Helper Functions
-// ===========================
 
 func sendAIError(w http.ResponseWriter, msg string) {
 	_ = json.NewEncoder(w).Encode(AIChatResponse{
@@ -186,20 +166,16 @@ Inget: JAWABAN KUDU FULL BASA SUNDA! 🐯`, username, role, dbInfo)
 }
 
 func callOpenRouter(messages []OpenRouterMessage) (string, error) {
-	// Get API key from environment variable
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
 	if apiKey == "" {
-		// Fallback: check for hardcoded key (not recommended for production)
 		return "", fmt.Errorf("OPENROUTER_API_KEY tidak ditemukan. Silakan set environment variable OPENROUTER_API_KEY")
 	}
 
-	// Get model from env or use default
 	model := os.Getenv("OPENROUTER_MODEL")
 	if model == "" {
-		model = "anthropic/claude-3.5-sonnet" // Default model
+		model = "anthropic/claude-3.5-sonnet" 
 	}
 
-	// Prepare request
 	reqBody := OpenRouterRequest{
 		Model:       model,
 		Messages:    messages,
@@ -212,19 +188,16 @@ func callOpenRouter(messages []OpenRouterMessage) (string, error) {
 		return "", fmt.Errorf("gagal encode request: %v", err)
 	}
 
-	// Create HTTP request
 	req, err := http.NewRequest("POST", "https://openrouter.ai/api/v1/chat/completions", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", fmt.Errorf("gagal membuat request: %v", err)
 	}
 
-	// Set headers
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("HTTP-Referer", "https://maungdb.local") // Optional
-	req.Header.Set("X-Title", "MaungDB AI Assistant")       // Optional
+	req.Header.Set("HTTP-Referer", "https://maungdb.local")
+	req.Header.Set("X-Title", "MaungDB AI Assistant")      
 
-	// Send request
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -232,29 +205,24 @@ func callOpenRouter(messages []OpenRouterMessage) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	// Read response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("gagal membaca response: %v", err)
 	}
 
-	// Parse response
 	var openRouterResp OpenRouterResponse
 	if err := json.Unmarshal(body, &openRouterResp); err != nil {
 		return "", fmt.Errorf("gagal parse response: %v", err)
 	}
 
-	// Check for API error
 	if openRouterResp.Error != nil {
 		return "", fmt.Errorf("OpenRouter API Error: %s", openRouterResp.Error.Message)
 	}
 
-	// Check if we got a valid response
 	if len(openRouterResp.Choices) == 0 {
 		return "", fmt.Errorf("tidak ada response dari AI")
 	}
 
-	// Extract reply
 	reply := openRouterResp.Choices[0].Message.Content
 	reply = strings.TrimSpace(reply)
 
