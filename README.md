@@ -1,4 +1,6 @@
-# 🐯 MaungDB
+#  MaungDB
+
+<img src="https://febrd.github.io/maungdb-docs/logonya.png" alt="Logo MaungDB" width="2000">
 
 ![Go Version](https://img.shields.io/badge/go-1.20%2B-00ADD8?style=flat&logo=go)
 ![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey)
