@@ -76,7 +76,7 @@ func main() {
 		listUserCmd()
 
 	case "version", "-v", "--version":
-		fmt.Printf("🐯 MaungDB %s\n", config.Version)
+		fmt.Printf("🐯 MaungDB %s\n", config.VERSION)
 		return
 
 	case "server":

@@ -3,3 +3,6 @@ maung_data/*
 DOCUMENT_INTERNAL/
 DOCUMENT_INTERNAL/*
 maung
+builder.sh
+dist/*
+dist/
