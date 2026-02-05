@@ -171,14 +171,14 @@ func parseSelect(tokens []string) (*Command, error) {
 			}
 			
 			currToken := strings.ToUpper(tokens[idx])
-			if currToken == "GABUNG" || currToken == "JOIN" {
+			if currToken == "GABUNG" || currToken == "JOIN" || currToken == "HIJIKEUN"  {
 				idx++ // Skip kata GABUNG/JOIN
-			} else if token == "GABUNG" || token == "JOIN" {
+			} else if token == "GABUNG" || token == "JOIN" || currToken == "HIJIKEUN" {
 				// Kasus: User langsung nulis GABUNG (Implicit Inner)
 				// Ulah di skip deui, idx geus bener di awal loop
 				idx++
 			} else {
-				return nil, errors.New("sanggeus tipe join kedah aya GABUNG/JOIN")
+				return nil, errors.New("sanggeus tipe join kedah aya HIJIKEUN/GABUNG/JOIN")
 			}
 
 			// 2. Ambil Nama Tabel Join

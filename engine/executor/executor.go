@@ -396,10 +396,29 @@ func execSelect(cmd *parser.Command) (*ExecutionResult, error) {
 	}
 
 	return &ExecutionResult{
-		Columns: finalHeader,
+		Columns: cleanHeaders(finalHeader),
 		Rows:    finalResult,
 		Message: fmt.Sprintf("%d baris kapanggih", len(finalResult)),
 	}, nil
+}
+
+func cleanHeaders(headers []string) []string {
+	seen := map[string]bool{}
+	out := []string{}
+
+	for _, h := range headers {
+		parts := strings.Split(h, ".")
+		col := parts[len(parts)-1] // ambil nama kolom saja
+
+		// Jika duplikat (JOIN tabrakan), fallback ke full name
+		if seen[col] {
+			out = append(out, h)
+		} else {
+			out = append(out, col)
+			seen[col] = true
+		}
+	}
+	return out
 }
 
 // ==========================================
