@@ -17,18 +17,16 @@
 ### 🎥 Video Demo
 *(Silakan klik gambar di bawah untuk memutar video demo)*
 
-[![MaungDB Demo](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
-
-> *Ganti `YOUR_VIDEO_ID` dengan ID video YouTube demo Anda.*
+[![MaungDB Demo](https://img.youtube.com/vi/J4IThAnQjWo/0.jpg)](https://www.youtube.com/watch?v=J4IThAnQjWo)
 
 ### 🖼️ Screenshot Dashboard
 | **Login Screen** | **Dashboard & Stats** |
 |:---:|:---:|
-| <img src="https://via.placeholder.com/400x250?text=Login+Screen" alt="Login Screen" width="400"> | <img src="https://via.placeholder.com/400x250?text=Dashboard+Stats" alt="Dashboard" width="400"> |
+| <img src="https://github.com/febrd/maungdb/blob/main/login.png?raw=true" alt="Login Screen" width="400"> | <img src="https://github.com/febrd/maungdb/blob/main/dashboard.png?raw=true" alt="Dashboard" width="400"> |
 
 | **Query Console** | **Table Designer** |
 |:---:|:---:|
-| <img src="https://via.placeholder.com/400x250?text=Query+Console" alt="Query Console" width="400"> | <img src="https://via.placeholder.com/400x250?text=Table+Designer" alt="Table Designer" width="400"> |
+| <img src="https://github.com/febrd/maungdb/blob/main/query_console.png?raw=true" alt="Query Console" width="400"> | <img src="https://github.com/febrd/maungdb/blob/main/tabel_designer.png?raw=true" alt="Table Designer" width="400"> |
 
 ---
 
