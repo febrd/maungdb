@@ -1,8 +1,3 @@
-Tentu, berikut adalah **README.md** yang telah diperbarui secara komprehensif. Saya telah menambahkan semua fitur terbaru (MaungQL v2), tipe data lengkap, dukungan multimedia (video/gambar), dan detail CLI yang lebih mendalam sesuai permintaan Anda.
-
----
-
-```markdown
 # 🐯 MaungDB
 
 ![Go Version](https://img.shields.io/badge/go-1.20%2B-00ADD8?style=flat&logo=go)
@@ -362,7 +357,4 @@ Jangan lupa beri ⭐ **Bintang** jika Anda menyukai kearifan lokal dalam kode in
 **Dibuat dengan ❤️ dan ☕ di Bandung.**
 *(c) 2026 MaungDB Team*
 
-```
-
-```
 
