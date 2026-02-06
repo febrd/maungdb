@@ -175,7 +175,7 @@ func startShell() {
 			fmt.Println("✅ Databasena dijieun:", args[1])
 			continue
 
-		case "use":
+		case "use", "angge", "anggo":
 			if len(args) < 2 {
 				fmt.Println("❌ format: use <database>")
 				continue

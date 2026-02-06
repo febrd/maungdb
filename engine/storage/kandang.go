@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	 "encoding/csv"
+	"fmt"
+	
+	"encoding/csv"
 	"github.com/febrd/maungdb/engine/auth"
 	"github.com/febrd/maungdb/internal/config"
 	"golang.org/x/crypto/bcrypt"
@@ -15,8 +17,119 @@ import (
 )
 
 var mutex sync.Mutex
+var ActiveDB string = ""
 
 
+func GetDBPath() string {
+    if ActiveDB != "" {
+        return filepath.Join(config.DataDir, "db_"+ActiveDB)
+    }
+
+    u, err := auth.CurrentUser()
+    if err == nil && u.Database != "" {
+        return filepath.Join(config.DataDir, "db_"+u.Database)
+    }
+
+    return ""
+}
+
+func CommitInsert(tableName, rowData string) error {
+    dbPath := GetDBPath()
+    if dbPath == "" {
+        return fmt.Errorf("database teu acan dipilih (kedah login atanapi 'use db')")
+    }
+
+    filePath := filepath.Join(dbPath, tableName+".mg")
+
+    f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+    if err != nil {
+        return fmt.Errorf("gagal muka file %s: %v", filePath, err)
+    }
+    defer f.Close()
+
+    if _, err := f.WriteString(rowData + "\n"); err != nil {
+        return err
+    }
+    
+    return nil
+}
+
+func CommitUpdate(tableName, id, newData string) error {
+    dbPath := GetDBPath()
+    if dbPath == "" {
+        return fmt.Errorf("database teu acan dipilih")
+    }
+    
+    filePath := filepath.Join(dbPath, tableName+".mg")
+    
+    content, err := os.ReadFile(filePath)
+    if err != nil {
+        return fmt.Errorf("gagal maca file %s: %v", filePath, err)
+    }
+
+    lines := strings.Split(string(content), "\n")
+    var newLines []string
+    updated := false
+
+    for _, line := range lines {
+        if line == "" { continue }
+        
+        parts := strings.Split(line, "|")
+        if len(parts) > 0 && parts[0] == id {
+            newLines = append(newLines, newData)
+            updated = true
+        } else {
+            newLines = append(newLines, line) 
+        }
+    }
+
+    if !updated {
+        return fmt.Errorf("ID %s teu kapendak di tabel %s kanggo diupdate", id, tableName)
+    }
+
+    output := strings.Join(newLines, "\n") + "\n"
+    return os.WriteFile(filePath, []byte(output), 0644)
+}
+
+func CommitDelete(tableName, id string) error {
+    dbPath := GetDBPath()
+    if dbPath == "" {
+        return fmt.Errorf("database teu acan dipilih")
+    }
+
+    filePath := filepath.Join(dbPath, tableName+".mg")
+
+    content, err := os.ReadFile(filePath)
+    if err != nil {
+        return fmt.Errorf("gagal maca file %s: %v", filePath, err)
+    }
+
+    lines := strings.Split(string(content), "\n")
+    var newLines []string
+    deleted := false
+
+    for _, line := range lines {
+        if line == "" { continue }
+        
+        parts := strings.Split(line, "|")
+        if len(parts) > 0 && parts[0] == id {
+            deleted = true
+            continue 
+        }
+        newLines = append(newLines, line)
+    }
+
+    if !deleted {
+        return fmt.Errorf("ID %s teu kapendak di tabel %s kanggo dihapus", id, tableName)
+    }
+
+    output := strings.Join(newLines, "\n")
+    if len(newLines) > 0 {
+        output += "\n"
+    }
+    
+    return os.WriteFile(filePath, []byte(output), 0644)
+}
 func Init() error {
 	if err := os.MkdirAll(config.DataDir, 0755); err != nil {
 		return err
@@ -221,3 +334,5 @@ func ImportCSV(table string, filePath string) (int, error) {
 	}
 	return count, nil
 }
+
+

@@ -6,36 +6,66 @@ import (
 	"strings"
 )
 
+
 func Parse(query string) (*Command, error) {
-	query = strings.TrimSpace(query)
-	query = strings.TrimSuffix(query, ";")
+    query = strings.TrimSpace(query)
+    query = strings.TrimSuffix(query, ";")
 
-	tokens := strings.Fields(query)
-	if len(tokens) == 0 {
-		return nil, errors.New("query kosong")
-	}
+      query = normalizeQuery(query)
 
-	verb := strings.ToUpper(tokens[0])
+    tokens := strings.Fields(query)
+    if len(tokens) == 0 {
+        return nil, errors.New("query kosong")
+    }
 
-	switch verb {
-	case "DAMEL", "BIKIN", "NYIEUN", "SCHEMA", "LAHAN":
-		if len(tokens) > 1 && strings.ToUpper(tokens[1]) == "CREATE" {
-			return parseCreate(tokens[2:])
-		}
-		return parseCreate(tokens[1:])	
-	case "SIMPEN", "TENDEUN", "INSERT":
-		return parseInsert(tokens)
-	case "TINGALI", "TENJO", "SELECT":
-		return parseSelect(tokens)
-	case "OMEAN", "ROBIH", "UPDATE":
-		return parseUpdate(tokens)
-	case "MICEUN", "PICEUN", "DELETE":
-		return parseDelete(tokens)
-	default:
-		return nil, errors.New("paréntah teu dikenal: " + verb)
-	}
+    verb := strings.ToUpper(tokens[0])
+
+    switch verb {
+    case "MIMITIAN", "BEGIN", "JADIKEUN", "COMMIT", "BATALKEUN", "ROLLBACK":
+        return &Command{
+            Type: CmdTransaction,
+            Arg1: verb,
+        }, nil
+
+    case "DAMEL", "BIKIN", "NYIEUN", "SCHEMA", "LAHAN":
+        if len(tokens) > 1 && strings.ToUpper(tokens[1]) == "CREATE" {
+            return parseCreate(tokens[2:])
+        }
+        return parseCreate(tokens[1:])
+        
+    case "SIMPEN", "TENDEUN", "INSERT":
+        return parseInsert(tokens)
+        
+    case "TINGALI", "TENJO", "SELECT":
+        return parseSelect(tokens)
+        
+    case "OMEAN", "ROBIH", "UPDATE":
+        return parseUpdate(tokens)
+        
+    case "MICEUN", "PICEUN", "DELETE":
+        return parseDelete(tokens)
+        
+    default:
+        return nil, errors.New("paréntah teu dikenal: " + verb)
+    }
 }
 
+func normalizeQuery(query string) string {
+
+    query = strings.ReplaceAll(query, ">=", " __GTE__ ")
+    query = strings.ReplaceAll(query, "<=", " __LTE__ ")
+    query = strings.ReplaceAll(query, "!=", " __NEQ__ ")
+
+    query = strings.ReplaceAll(query, "=", " = ")
+    query = strings.ReplaceAll(query, ">", " > ")
+    query = strings.ReplaceAll(query, "<", " < ")
+    
+    query = strings.ReplaceAll(query, "__GTE__", ">=")
+    query = strings.ReplaceAll(query, "__LTE__", "<=")
+    query = strings.ReplaceAll(query, "__NEQ__", "!=")
+
+    return query
+}
 func parseCreate(tokens []string) (*Command, error) {
 	if len(tokens) < 2 {
 		return nil, errors.New("format: DAMEL <tabel> <definisi_kolom>")
