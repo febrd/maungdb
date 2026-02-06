@@ -8,6 +8,7 @@ const (
 	CmdSelect CommandType = "SELECT"
 	CmdUpdate CommandType = "UPDATE"
 	CmdDelete CommandType = "DELETE"
+	CmdTransaction CommandType = "TRANSACTION"
 )
 
 type JoinClause struct {
@@ -28,7 +29,9 @@ type Command struct {
 	OrderBy   string 
 	OrderDesc bool   
 	Limit     int   
-	Offset    int    
+	Offset    int  
+	
+	Arg1	string
 }
 
 type Condition struct {

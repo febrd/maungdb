@@ -11,6 +11,8 @@ import (
 	"github.com/febrd/maungdb/engine/parser"
 	"github.com/febrd/maungdb/engine/schema"
 	"github.com/febrd/maungdb/engine/storage"
+	"github.com/febrd/maungdb/engine/transaction"
+
 
 )
 
@@ -22,6 +24,8 @@ type ExecutionResult struct {
 
 func Execute(cmd *parser.Command) (*ExecutionResult, error) {
 	switch cmd.Type {
+	case parser.CmdTransaction:
+		return execTransaction(cmd)
 	case parser.CmdCreate:
 		return execCreate(cmd)
 	case parser.CmdInsert:
@@ -34,6 +38,40 @@ func Execute(cmd *parser.Command) (*ExecutionResult, error) {
 		return execDelete(cmd)
 	default:
 		return nil, errors.New("command teu didukung")
+	}
+}
+
+func execTransaction(cmd *parser.Command) (*ExecutionResult, error) {
+	tm := transaction.GetManager()
+	
+	switch strings.ToUpper(cmd.Arg1) {
+	case "MIMITIAN", "BEGIN":
+		txID := tm.Begin()
+		auth.SetSessionTxID(txID)
+		return &ExecutionResult{Message: fmt.Sprintf("🏁 Transaksi dimimitian (ID: %s)", txID)}, nil
+		
+	case "JADIKEUN", "COMMIT":
+		txID := auth.GetSessionTxID()
+		if txID == "" { return nil, errors.New("teu aya transaksi nu jalan") }
+		
+		if err := tm.Commit(txID); err != nil {
+			return nil, err
+		}
+		auth.SetSessionTxID("")
+		return &ExecutionResult{Message: "💾 Transaksi sukses disimpen (Committed)"}, nil
+
+	case "BATALKEUN", "ROLLBACK":
+		txID := auth.GetSessionTxID()
+		if txID == "" { return nil, errors.New("teu aya transaksi nu jalan") }
+		
+		if err := tm.Rollback(txID); err != nil {
+			return nil, err
+		}
+		auth.SetSessionTxID("")
+		return &ExecutionResult{Message: "🔙 Transaksi dibatalkeun (Rolled Back)"}, nil
+		
+	default:
+		return nil, errors.New("parentah transaksi teu dikenal")
 	}
 }
 
@@ -158,6 +196,19 @@ func execInsert(cmd *parser.Command) (*ExecutionResult, error) {
 	if err := ValidateConstraints(s, cmd.Table, cmd.Data); err != nil {
 		return nil, fmt.Errorf("❌ Gagal Simpen: %v", err)
 	}
+
+
+	activeTxID := auth.GetSessionTxID() 
+
+	if activeTxID != "" {
+		tm := transaction.GetManager()
+		err := tm.AddChange(activeTxID, transaction.OpInsert, cmd.Table, cmd.Data, "")
+		if err != nil {
+			return nil, fmt.Errorf("gagal nambah ke transaksi: %v", err)
+		}
+		return &ExecutionResult{Message: "✅ Data disimpen samentawis (nunggu JADIKEUN)"}, nil
+	}
+
 	if err := storage.Append(cmd.Table, cmd.Data); err != nil { return nil, err }
 	return &ExecutionResult{Message: fmt.Sprintf("✅ Data asup ka table '%s'", cmd.Table)}, nil
 }
@@ -439,6 +490,27 @@ func evaluateJoinCondition(rowA, rowB []string, headA, headB []string, tblA, tbl
 	return valA == valB
 }
 
+func evaluateConditions(cols []string, schemaCols []schema.Column, conditions []parser.Condition) bool {
+	if len(conditions) == 0 { return true }
+
+	result := evaluateOne(cols, schemaCols, conditions[0])
+	
+	for i := 0; i < len(conditions)-1; i++ {
+		cond := conditions[i]
+		if cond.LogicOp == "" { break }
+		
+		nextResult := evaluateOne(cols, schemaCols, conditions[i+1])
+		op := strings.ToUpper(cond.LogicOp)
+		
+		if op == "SARENG" || op == "AND" {
+			result = result && nextResult
+		} else if op == "ATAWA" || op == "OR" {
+			result = result || nextResult
+		}
+	}
+	return result
+}
+
 func evaluateMapCondition(rowMap map[string]string, conditions []parser.Condition) bool {
 	if len(conditions) == 0 { return true }
 
@@ -478,7 +550,13 @@ func execUpdate(cmd *parser.Command) (*ExecutionResult, error) {
 		return nil, err
 	}
 
-	var newRows []string
+	activeTxID := auth.GetSessionTxID()
+	var tm *transaction.TxManager
+	if activeTxID != "" {
+		tm = transaction.GetManager()
+	}
+
+	var newRows []string 
 	updatedCount := 0
 
 	for _, raw := range rawRows {
@@ -502,23 +580,48 @@ func execUpdate(cmd *parser.Command) (*ExecutionResult, error) {
 		}
 
 		if shouldUpdate {
+			newCols := make([]string, len(cols))
+			copy(newCols, cols)
+
 			for colName, newVal := range cmd.Updates {
 				idx := indexOf(colName, s.GetFieldNames())
 				if idx != -1 {
-					cols[idx] = newVal
+					newCols[idx] = newVal
 				}
+			}
+			
+			newData := strings.Join(newCols, "|")
+
+			if activeTxID != "" {
+				err := tm.AddChange(activeTxID, transaction.OpUpdate, cmd.Table, newData, raw)
+				if err != nil {
+					return nil, fmt.Errorf("gagal nambah ke transaksi: %v", err)
+				}
+			} else {
+	
+				cols = newCols 
 			}
 			updatedCount++
 		}
 
-		newRows = append(newRows, strings.Join(cols, "|"))
+		if activeTxID == "" {
+			newRows = append(newRows, strings.Join(cols, "|"))
+		}
+	}
+
+	if activeTxID != "" {
+		return &ExecutionResult{
+			Message: fmt.Sprintf("✅ %d data diomean (nunggu JADIKEUN/COMMIT)", updatedCount),
+		}, nil
 	}
 
 	if err := storage.Rewrite(cmd.Table, newRows); err != nil {
 		return nil, err
 	}
 
-	return &ExecutionResult{Message: fmt.Sprintf("✅ %d data geus diomean", updatedCount)}, nil
+	return &ExecutionResult{
+		Message: fmt.Sprintf("✅ %d data geus diomean", updatedCount),
+	}, nil
 }
 
 func execDelete(cmd *parser.Command) (*ExecutionResult, error) {
