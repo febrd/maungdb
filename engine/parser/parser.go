@@ -44,7 +44,8 @@ func Parse(query string) (*Command, error) {
         
     case "MICEUN", "PICEUN", "DELETE":
         return parseDelete(tokens)
-        
+	case "TANDAIN", "TANDAAN", "TAWISAN":
+			return parseIndex(tokens)
     default:
         return nil, errors.New("paréntah teu dikenal: " + verb)
     }
@@ -66,6 +67,23 @@ func normalizeQuery(query string) string {
 
     return query
 }
+
+func parseIndex(tokens []string) (*Command, error) {
+    if len(tokens) < 4 {
+        return nil, errors.New("format salah: TANDAIN <table> DINA <kolom>")
+    }
+
+    if strings.ToUpper(tokens[2]) != "DINA" && strings.ToUpper(tokens[2]) != "ON" {
+        return nil, errors.New("kedah nganggo kecap DINA")
+    }
+
+    return &Command{
+        Type:   CmdIndex,
+        Table:  tokens[1],
+        Fields: []string{tokens[3]},
+    }, nil
+}
+
 func parseCreate(tokens []string) (*Command, error) {
 	if len(tokens) < 2 {
 		return nil, errors.New("format: DAMEL <tabel> <definisi_kolom>")

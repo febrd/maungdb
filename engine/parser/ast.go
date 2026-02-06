@@ -9,6 +9,7 @@ const (
 	CmdUpdate CommandType = "UPDATE"
 	CmdDelete CommandType = "DELETE"
 	CmdTransaction CommandType = "TRANSACTION"
+	CmdIndex	CommandType = "INDEX"
 )
 
 type JoinClause struct {
