@@ -12,6 +12,7 @@ import (
 	"github.com/febrd/maungdb/engine/schema"
 	"github.com/febrd/maungdb/engine/storage"
 	"github.com/febrd/maungdb/engine/transaction"
+	"github.com/febrd/maungdb/engine/indexing"
 
 
 )
@@ -26,6 +27,8 @@ func Execute(cmd *parser.Command) (*ExecutionResult, error) {
 	switch cmd.Type {
 	case parser.CmdTransaction:
 		return execTransaction(cmd)
+	case parser.CmdIndex:
+		return execIndex(cmd)
 	case parser.CmdCreate:
 		return execCreate(cmd)
 	case parser.CmdInsert:
@@ -39,6 +42,26 @@ func Execute(cmd *parser.Command) (*ExecutionResult, error) {
 	default:
 		return nil, errors.New("command teu didukung")
 	}
+}
+
+func execIndex(cmd *parser.Command) (*ExecutionResult, error) {
+    user, _ := auth.CurrentUser()
+    
+    s, err := schema.Load(user.Database, cmd.Table)
+    if err != nil {
+        return nil, fmt.Errorf("tabel teu kapanggih: %v", err)
+    }
+
+    colName := cmd.Fields[0]
+    
+    err = indexing.GlobalIndexManager.BuildIndex(cmd.Table, colName, s.GetFieldNames())
+    if err != nil {
+        return nil, fmt.Errorf("gagal nyieun index: %v", err)
+    }
+
+    return &ExecutionResult{
+        Message: fmt.Sprintf("✅ Index '%s' dina tabel '%s' parantos didamel (B-Tree Optimized)", colName, cmd.Table),
+    }, nil
 }
 
 func execTransaction(cmd *parser.Command) (*ExecutionResult, error) {
@@ -210,17 +233,20 @@ func execInsert(cmd *parser.Command) (*ExecutionResult, error) {
 	}
 
 	if err := storage.Append(cmd.Table, cmd.Data); err != nil { return nil, err }
+
+    go func() {
+        indexing.GlobalIndexManager.UpdateIndexOnInsert(cmd.Table, cmd.Data, s.GetFieldNames())
+    }()
+	
 	return &ExecutionResult{Message: fmt.Sprintf("✅ Data asup ka table '%s'", cmd.Table)}, nil
 }
 
 
 func execSelect(cmd *parser.Command) (*ExecutionResult, error) {
-
 	user, _ := auth.CurrentUser()
-
 	sMain, err := schema.Load(user.Database, cmd.Table)
 	if err != nil {
-		return nil, fmt.Errorf("tabel '%s' teu kapanggih (pastikeun schema parantos didamel): %v", cmd.Table, err)
+		return nil, fmt.Errorf("tabel '%s' teu kapanggih: %v", cmd.Table, err)
 	}
 
 	if !sMain.Can(user.Role, "read") {
@@ -232,6 +258,22 @@ func execSelect(cmd *parser.Command) (*ExecutionResult, error) {
 		return nil, err
 	}
 
+
+	var indexedPKs map[string]bool = nil 
+	
+	if len(cmd.Where) == 1 && cmd.Where[0].Operator == "=" {
+		cond := cmd.Where[0]
+		
+		pks, err := indexing.GlobalIndexManager.Lookup(cmd.Table, cond.Field, cond.Value)
+		if err == nil {
+			indexedPKs = make(map[string]bool)
+			for _, pk := range pks {
+				indexedPKs[pk] = true
+			}
+			fmt.Printf("⚡ [OPTIMIZER] Index Scan on table '%s', column '%s'\n", cmd.Table, cond.Field)
+		}
+	}
+
 	var currentHeader []string
 	mainCols := sMain.GetFieldNames()
 	for _, col := range mainCols {
@@ -239,9 +281,21 @@ func execSelect(cmd *parser.Command) (*ExecutionResult, error) {
 	}
 
 	var currentRows [][]string
+	
 	for _, row := range mainRaw {
 		if strings.TrimSpace(row) == "" { continue }
-		currentRows = append(currentRows, strings.Split(row, "|"))
+		parts := strings.Split(row, "|")
+		
+		if indexedPKs != nil {
+			if len(parts) > 0 {
+				pk := parts[0] 
+				if !indexedPKs[pk] {
+					continue
+				}
+			}
+		}
+
+		currentRows = append(currentRows, parts)
 	}
 
 	if len(currentRows) == 0 && len(cmd.Joins) == 0 && !isAggregateCheck(cmd.Fields) {
@@ -312,6 +366,7 @@ func execSelect(cmd *parser.Command) (*ExecutionResult, error) {
 		currentHeader = append(currentHeader, targetHeaderFull...)
 	}
 
+	
 	var filteredMaps []map[string]string
 	var filteredSlices [][]string
 
@@ -363,7 +418,6 @@ func execSelect(cmd *parser.Command) (*ExecutionResult, error) {
 		finalResult = append(finalResult, resultRow)
 
 	} else {
-
 		if cmd.OrderBy != "" {
 			colIdx := indexOf(cmd.OrderBy, currentHeader)
 			if colIdx == -1 {
@@ -412,35 +466,35 @@ func execSelect(cmd *parser.Command) (*ExecutionResult, error) {
 					tempMap[currentHeader[i]] = val
 					if p := strings.Split(currentHeader[i], "."); len(p) > 1 { tempMap[p[1]] = val }
 				}
-			}
+            }
 
-			var rowData []string
-			for _, pc := range parsedCols {
-				if val, ok := tempMap[pc.TargetCol]; ok {
-					rowData = append(rowData, val)
-				} else {
-					found := false
-					if !strings.Contains(pc.TargetCol, ".") {
-						for k, v := range tempMap {
-							if strings.HasSuffix(k, "."+pc.TargetCol) {
-								rowData = append(rowData, v)
-								found = true
-								break
-							}
-						}
-					}
-					if !found { rowData = append(rowData, "NULL") }
-				}
-			}
-			finalResult = append(finalResult, rowData)
-		}
-	}
+            var rowData []string
+            for _, pc := range parsedCols {
+                if val, ok := tempMap[pc.TargetCol]; ok {
+                    rowData = append(rowData, val)
+                } else {
+                    found := false
+                    if !strings.Contains(pc.TargetCol, ".") {
+                        for k, v := range tempMap {
+                            if strings.HasSuffix(k, "."+pc.TargetCol) {
+                                rowData = append(rowData, v)
+                                found = true
+                                break
+                            }
+                        }
+                    }
+                    if !found { rowData = append(rowData, "NULL") }
+                }
+            }
+            finalResult = append(finalResult, rowData)
+        }
+    }
 
-	return &ExecutionResult{
-		Columns: finalHeader,
-		Rows:    finalResult,
-		Message: fmt.Sprintf("%d baris kapendak", len(finalResult)),
-	}, nil
+    return &ExecutionResult{
+        Columns: finalHeader,
+        Rows:    finalResult,
+        Message: fmt.Sprintf("%d baris kapendak", len(finalResult)),
+    }, nil
 }
 
 func isAggregateCheck(fields []string) bool {
