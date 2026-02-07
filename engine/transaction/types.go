@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"time"
+	"sync"
 )
 
 type TxStatus int
@@ -22,10 +23,11 @@ const (
 
 type WALEntry struct {
 	LSN       uint64    `json:"lsn"`       
-	TxID      string    `json:"tx_id"`     
-	Timestamp time.Time `json:"timestamp"` 
-	Type      OpType    `json:"type"`      
-	TableName string    `json:"table"`     
+	TxID      string    `json:"tx_id"`
+	User      string    `json:"user"`
+	Timestamp time.Time `json:"timestamp"`
+	Type      OpType    `json:"type"`
+	TableName string    `json:"table_name"`
 	Data      string    `json:"data"`      
 	PrevData  string    `json:"prev_data"` 
 }
@@ -36,3 +38,22 @@ type TransactionContext struct {
 	Status    TxStatus
 	Changes   []WALEntry 
 }
+
+type Transaction struct {
+	ID        string
+	User      string
+	StartTime time.Time
+	Status    TxStatus
+	Changes   []WALEntry 
+}
+
+type TxManager struct {
+	mu          sync.RWMutex
+	activeTxs   map[string]*Transaction
+	walFilePath string
+}
+
+var (
+	GlobalManager *TxManager
+	once          sync.Once
+)

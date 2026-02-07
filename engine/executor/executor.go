@@ -1,11 +1,14 @@
 package executor
 
 import (
+	"os"
 	"errors"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/febrd/maungdb/internal/config"
 
 	"github.com/febrd/maungdb/engine/auth"
 	"github.com/febrd/maungdb/engine/parser"
@@ -13,6 +16,8 @@ import (
 	"github.com/febrd/maungdb/engine/storage"
 	"github.com/febrd/maungdb/engine/transaction"
 	"github.com/febrd/maungdb/engine/indexing"
+	"github.com/febrd/maungdb/engine/view"
+
 
 
 )
@@ -24,24 +29,84 @@ type ExecutionResult struct {
 }
 
 func Execute(cmd *parser.Command) (*ExecutionResult, error) {
-	switch cmd.Type {
+
+    switch cmd.Type {
+
 	case parser.CmdTransaction:
 		return execTransaction(cmd)
-	case parser.CmdIndex:
-		return execIndex(cmd)
-	case parser.CmdCreate:
-		return execCreate(cmd)
-	case parser.CmdInsert:
-		return execInsert(cmd)
-	case parser.CmdSelect:
-		return execSelect(cmd)
-	case parser.CmdUpdate:
-		return execUpdate(cmd)
-	case parser.CmdDelete:
-		return execDelete(cmd)
-	default:
-		return nil, errors.New("command teu didukung")
-	}
+    case parser.CmdCreate:
+        return execCreate(cmd)
+    case parser.CmdInsert:
+        return execInsert(cmd)
+    case parser.CmdSelect:
+        return execSelect(cmd)
+    case parser.CmdUpdate:
+        return execUpdate(cmd)
+    case parser.CmdDelete:
+        return execDelete(cmd) 
+    case parser.CmdShowDB:
+        return execShowDB()
+    case parser.CmdCreateView:
+        return execCreateView(cmd)
+    case parser.CmdIndex:
+        return execIndex(cmd)
+    }
+
+    return nil, fmt.Errorf("paréntah teu dikenal: %s", cmd.Type)
+}
+
+func execShowDB() (*ExecutionResult, error) {
+    user, err := auth.CurrentUser()
+    if err != nil {
+        return nil, fmt.Errorf("gagal maca user: %v", err)
+    }
+    
+    files, err := os.ReadDir(config.DataDir)
+    if err != nil {
+        return nil, fmt.Errorf("gagal maca data directory: %v", err)
+    }
+
+    var rows [][]string
+
+    for _, f := range files {
+        if f.IsDir() && strings.HasPrefix(f.Name(), "db_") {
+            dbName := strings.TrimPrefix(f.Name(), "db_")
+            permission := ""
+
+            if user.Role == "supermaung" {
+                permission = "FULL (Supermaung)"
+            
+            } else if user.Role == "admin" {
+                if isDBAllowed(user, dbName) {
+                    permission = "READ/WRITE (Admin)"
+                }
+            
+            } else {
+                if isDBAllowed(user, dbName) {
+                    permission = "READ/WRITE"
+                }
+            }
+
+            if permission != "" {
+                rows = append(rows, []string{dbName, permission})
+            }
+        }
+    }
+
+    return &ExecutionResult{
+        Columns: []string{"Database", "Status Akses"},
+        Rows:    rows,
+        Message: fmt.Sprintf("%d PANGKAL (database) kapendak", len(rows)),
+    }, nil
+}
+
+func isDBAllowed(user *auth.User, dbName string) bool {
+    for _, db := range user.Databases {
+        if db == "*" || db == dbName {
+            return true
+        }
+    }
+    return false
 }
 
 func execIndex(cmd *parser.Command) (*ExecutionResult, error) {
@@ -64,38 +129,57 @@ func execIndex(cmd *parser.Command) (*ExecutionResult, error) {
     }, nil
 }
 
-func execTransaction(cmd *parser.Command) (*ExecutionResult, error) {
-	tm := transaction.GetManager()
-	
-	switch strings.ToUpper(cmd.Arg1) {
-	case "MIMITIAN", "BEGIN":
-		txID := tm.Begin()
-		auth.SetSessionTxID(txID)
-		return &ExecutionResult{Message: fmt.Sprintf("🏁 Transaksi dimimitian (ID: %s)", txID)}, nil
-		
-	case "JADIKEUN", "COMMIT":
-		txID := auth.GetSessionTxID()
-		if txID == "" { return nil, errors.New("teu aya transaksi nu jalan") }
-		
-		if err := tm.Commit(txID); err != nil {
-			return nil, err
-		}
-		auth.SetSessionTxID("")
-		return &ExecutionResult{Message: "💾 Transaksi sukses disimpen (Committed)"}, nil
-
-	case "BATALKEUN", "ROLLBACK":
-		txID := auth.GetSessionTxID()
-		if txID == "" { return nil, errors.New("teu aya transaksi nu jalan") }
-		
-		if err := tm.Rollback(txID); err != nil {
-			return nil, err
-		}
-		auth.SetSessionTxID("")
-		return &ExecutionResult{Message: "🔙 Transaksi dibatalkeun (Rolled Back)"}, nil
-		
-	default:
-		return nil, errors.New("parentah transaksi teu dikenal")
+func execCreateView(cmd *parser.Command) (*ExecutionResult, error) {
+	user, _ := auth.CurrentUser()
+	if user.Role != "admin" && user.Role != "supermaung" {
+		return nil, errors.New("hanya admin nu tiasa damel KACA")
 	}
+
+	_, err := parser.Parse(cmd.ViewQuery)
+	if err != nil {
+		return nil, fmt.Errorf("query view teu valid: %v", err)
+	}
+
+	err = view.SaveView(user.Database, cmd.Table, cmd.ViewQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ExecutionResult{
+		Message: fmt.Sprintf("✅ Kaca (View) '%s' parantos didamel.", cmd.Table),
+	}, nil
+}
+
+func execTransaction(cmd *parser.Command) (*ExecutionResult, error) {
+    user, err := auth.CurrentUser()
+    if err != nil {
+        return nil, fmt.Errorf("kedah login heula kanggo transaksi: %v", err)
+    }
+
+    tm := transaction.GetManager()
+    switch strings.ToUpper(cmd.Arg1) {
+	case "MIMITIAN", "BEGIN":
+        if user == nil { return nil, errors.New("kedah login heula") }
+        txID, err := tm.Begin(user.Username)
+        if err != nil { return nil, err }
+        return &ExecutionResult{Message: fmt.Sprintf("🏁 Transaksi dimimitian (ID: %s)", txID)}, nil
+
+    case "JADIKEUN", "COMMIT":
+        if user == nil { return nil, errors.New("kedah login heula") }
+        err := tm.Commit(user.Username)
+        if err != nil { return nil, err }
+        return &ExecutionResult{Message: "✅ Transaksi SUKSES disimpen (Committed)"}, nil
+
+    case "BATALKEUN", "ROLLBACK":
+        if user == nil { return nil, errors.New("kedah login heula") }
+        err := tm.Rollback(user.Username)
+        if err != nil { return nil, err }
+        return &ExecutionResult{Message: "✅ Transaksi dibatalkeun (Rolled Back)"}, nil
+
+	
+	default:
+        return nil, errors.New("parentah transaksi teu dikenal (pastikeun MIMITIAN, JADIKEUN, atanapi BATALKEUN)")
+    }
 }
 
 func execCreate(cmd *parser.Command) (*ExecutionResult, error) {
@@ -211,53 +295,93 @@ func splitColumns(input string) []string {
 
 
 func execInsert(cmd *parser.Command) (*ExecutionResult, error) {
-	user, _ := auth.CurrentUser()
-	s, err := schema.Load(user.Database, cmd.Table)
-	if err != nil { return nil, err }
-	if !s.Can(user.Role, "write") { return nil, errors.New("teu boga hak nulis") }
-	if err := s.ValidateRow(cmd.Data); err != nil { return nil, err }
-	if err := ValidateConstraints(s, cmd.Table, cmd.Data); err != nil {
-		return nil, fmt.Errorf("❌ Gagal Simpen: %v", err)
-	}
+    user, err := auth.CurrentUser()
+    if err != nil {
+        return nil, fmt.Errorf("gagal maca user: %v", err)
+    }
 
+    s, err := schema.Load(user.Database, cmd.Table)
+    if err != nil { return nil, err }
+    if !s.Can(user.Role, "write") { return nil, errors.New("akses ditolak: anjeun teu boga hak nulis ka tabel ieu") }
 
-	activeTxID := auth.GetSessionTxID() 
+    if err := s.ValidateRow(cmd.Data); err != nil { return nil, err }
+    if err := ValidateConstraints(s, cmd.Table, cmd.Data); err != nil {
+        return nil, fmt.Errorf("gagal validasi data: %v", err)
+    }
 
-	if activeTxID != "" {
-		tm := transaction.GetManager()
-		err := tm.AddChange(activeTxID, transaction.OpInsert, cmd.Table, cmd.Data, "")
-		if err != nil {
-			return nil, fmt.Errorf("gagal nambah ke transaksi: %v", err)
-		}
-		return &ExecutionResult{Message: "✅ Data disimpen samentawis (nunggu JADIKEUN)"}, nil
-	}
+    tm := transaction.GetManager()
+    if tm.IsActive(user.Username) {
+        err := tm.AddOperation(user.Username, transaction.OpInsert, cmd.Table, cmd.Data, "")
+        if err != nil {
+            return nil, fmt.Errorf("gagal nambah ke transaksi: %v", err)
+        }
 
-	if err := storage.Append(cmd.Table, cmd.Data); err != nil { return nil, err }
+        return &ExecutionResult{
+            Message: "✅ Data disimpen samentawis (nunggu JADIKEUN)",
+        }, nil
+    }
+
+    if err := storage.Append(cmd.Table, cmd.Data); err != nil { 
+        return nil, fmt.Errorf("gagal nulis ka disk: %v", err) 
+    }
 
     go func() {
         indexing.GlobalIndexManager.UpdateIndexOnInsert(cmd.Table, cmd.Data, s.GetFieldNames())
     }()
-	
-	return &ExecutionResult{Message: fmt.Sprintf("✅ Data asup ka table '%s'", cmd.Table)}, nil
+    
+    return &ExecutionResult{
+        Message: fmt.Sprintf("✅ Data asup ka table '%s'", cmd.Table),
+    }, nil
 }
-
 
 func execSelect(cmd *parser.Command) (*ExecutionResult, error) {
     user, _ := auth.CurrentUser()
+    var mainRaw []string
+    var sMain *schema.Definition
+    
+    isView := view.IsView(user.Database, cmd.Table)
 
-    sMain, err := schema.Load(user.Database, cmd.Table)
-    if err != nil {
-        return nil, fmt.Errorf("tabel '%s' teu kapanggih: %v", cmd.Table, err)
-    }
-    if !sMain.Can(user.Role, "read") {
-        return nil, errors.New("akses ditolak: anjeun teu boga hak maca tabel ieu")
-    }
+    if isView {
 
-    mainRaw, err := storage.ReadAll(cmd.Table)
-    if err != nil { return nil, err }
+        viewQueryStr, err := view.LoadView(user.Database, cmd.Table)
+        if err != nil { return nil, fmt.Errorf("gagal maca kaca '%s': %v", cmd.Table, err) }
+        viewCmd, err := parser.Parse(viewQueryStr)
+        if err != nil { return nil, fmt.Errorf("definisi kaca ruksak: %v", err) }
+        viewRes, err := execSelect(viewCmd)
+        if err != nil { return nil, fmt.Errorf("error nalika muka kaca: %v", err) }
+
+        for _, row := range viewRes.Rows {
+            mainRaw = append(mainRaw, strings.Join(row, "|"))
+        }
+
+        virtualCols := []schema.Column{}
+        for _, colName := range viewRes.Columns {
+            cleanName := colName
+            if parts := strings.Split(colName, "."); len(parts) > 1 {
+                cleanName = parts[1]
+            }
+            virtualCols = append(virtualCols, schema.Column{Name: cleanName, Type: "STRING"})
+        }
+        sMain = &schema.Definition{Columns: virtualCols}
+
+    } else {
+
+        s, err := schema.Load(user.Database, cmd.Table)
+        if err != nil {
+            return nil, fmt.Errorf("tabel '%s' teu kapanggih: %v", cmd.Table, err)
+        }
+        if !s.Can(user.Role, "read") {
+            return nil, errors.New("akses ditolak: anjeun teu boga hak maca tabel ieu")
+        }
+        sMain = s
+
+        mainRaw, err = storage.ReadAll(cmd.Table)
+        if err != nil { return nil, err }
+    }
 
     var indexedPKs map[string]bool = nil 
-    if len(cmd.Where) == 1 && cmd.Where[0].Operator == "=" {
+    
+    if !isView && len(cmd.Where) == 1 && cmd.Where[0].Operator == "=" {
         cond := cmd.Where[0]
         pks, err := indexing.GlobalIndexManager.Lookup(cmd.Table, cond.Field, cond.Value)
         if err == nil {
@@ -350,7 +474,7 @@ func execSelect(cmd *parser.Command) (*ExecutionResult, error) {
         currentHeader = append(currentHeader, targetHeaderFull...)
     }
 
-	var filteredMaps []map[string]string
+    var filteredMaps []map[string]string
     
     for _, cols := range currentRows {
         rowMap := make(map[string]string)
@@ -399,10 +523,8 @@ func execSelect(cmd *parser.Command) (*ExecutionResult, error) {
         finalHeader = append(finalHeader, displayText)
     }
 
-
     if cmd.GroupBy != "" {
         groups := make(map[string][]map[string]string)
-        
         for _, row := range filteredMaps {
             groupVal, ok := row[cmd.GroupBy]
             if !ok { 
@@ -448,7 +570,6 @@ func execSelect(cmd *parser.Command) (*ExecutionResult, error) {
 
     } else if isAggregateQuery {
         var resultRow []string       
-
         for _, pc := range parsedCols {
             val, _ := CalculateAggregate(filteredMaps, pc)
             resultRow = append(resultRow, val)
@@ -611,7 +732,7 @@ func execUpdate(cmd *parser.Command) (*ExecutionResult, error) {
 			newData := strings.Join(newCols, "|")
 
 			if activeTxID != "" {
-				err := tm.AddChange(activeTxID, transaction.OpUpdate, cmd.Table, newData, raw)
+				err := tm.AddOperation(activeTxID, transaction.OpUpdate, cmd.Table, newData, raw)
 				if err != nil {
 					return nil, fmt.Errorf("gagal nambah ke transaksi: %v", err)
 				}
@@ -643,56 +764,69 @@ func execUpdate(cmd *parser.Command) (*ExecutionResult, error) {
 }
 
 func execDelete(cmd *parser.Command) (*ExecutionResult, error) {
-	user, _ := auth.CurrentUser()
-	s, err := schema.Load(user.Database, cmd.Table)
-	if err != nil {
-		return nil, err
-	}
-	if !s.Can(user.Role, "write") {
-		return nil, errors.New("teu boga hak nulis (miceun)")
-	}
+    user, _ := auth.CurrentUser()
+    s, err := schema.Load(user.Database, cmd.Table)
+    if err != nil {
+        return nil, err
+    }
+    if !s.Can(user.Role, "write") {
+        return nil, errors.New("teu boga hak nulis (miceun) di tabel ieu")
+    }
 
-	rawRows, err := storage.ReadAll(cmd.Table)
-	if err != nil {
-		return nil, err
-	}
+    rawRows, err := storage.ReadAll(cmd.Table)
+    if err != nil {
+        return nil, err
+    }
 
-	var newRows []string
-	deletedCount := 0
+    tm := transaction.GetManager()
+    isActiveTx := tm.IsActive(user.Username)
+    deletedCount := 0
 
-	for _, raw := range rawRows {
-		if raw == "" { continue }
-		cols := strings.Split(raw, "|")
+    for _, raw := range rawRows {
+        if raw == "" { continue }
+        cols := strings.Split(raw, "|")
+        shouldDelete := true
+        
+        if len(cmd.Where) > 0 {
+            shouldDelete = evaluateOne(cols, s.Columns, cmd.Where[0])
+            for i := 0; i < len(cmd.Where)-1; i++ {
+                cond := cmd.Where[i]
+                if cond.LogicOp == "" { break }
+                
+                nextResult := evaluateOne(cols, s.Columns, cmd.Where[i+1])
+                op := strings.ToUpper(cond.LogicOp)
+                
+                if op == "SARENG" || op == "AND" {
+                    shouldDelete = shouldDelete && nextResult
+                } else if op == "ATAWA" || op == "OR" {
+                    shouldDelete = shouldDelete || nextResult
+                }
+            }
+        }
 
-		shouldDelete := true
-		if len(cmd.Where) > 0 {
-			shouldDelete = evaluateOne(cols, s.Columns, cmd.Where[0])
-			for i := 0; i < len(cmd.Where)-1; i++ {
-				cond := cmd.Where[i]
-				if cond.LogicOp == "" { break }
-				nextResult := evaluateOne(cols, s.Columns, cmd.Where[i+1])
-				op := strings.ToUpper(cond.LogicOp)
-				if op == "SARENG" || op == "AND" {
-					shouldDelete = shouldDelete && nextResult
-				} else if op == "ATAWA" || op == "OR" {
-					shouldDelete = shouldDelete || nextResult
-				}
-			}
-		}
+        if shouldDelete {
+            rowID := cols[0] 
+            if isActiveTx {
+                err := tm.AddOperation(user.Username, transaction.OpDelete, cmd.Table, raw, raw)
+                if err != nil {
+                    return nil, fmt.Errorf("gagal nambah operasi delete ke transaksi: %v", err)
+                }
+            } else {
+                if err := storage.CommitDelete(cmd.Table, rowID); err != nil {
+                    return nil, fmt.Errorf("gagal ngahapus data fisik ID %s: %v", rowID, err)
+                }
+                
+                go func(tbl, id string) {
+                    indexing.GlobalIndexManager.RemoveIndex(tbl, id) 
+                }(cmd.Table, rowID)
+            }
+            deletedCount++
+        }
+    }
 
-		if shouldDelete {
-			deletedCount++
-			continue
-		}
-
-		newRows = append(newRows, raw)
-	}
-
-	if err := storage.Rewrite(cmd.Table, newRows); err != nil {
-		return nil, err
-	}
-
-	return &ExecutionResult{Message: fmt.Sprintf("✅ %d data geus dipiceun", deletedCount)}, nil
+    return &ExecutionResult{
+        Message: fmt.Sprintf("✅ %d data geus dipiceun", deletedCount),
+    }, nil
 }
 
 func isAggregateCheck(fields []string) bool {
