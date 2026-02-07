@@ -339,4 +339,26 @@ func ImportCSV(table string, filePath string) (int, error) {
 	return count, nil
 }
 
+func ListTables(dbName string) ([]string, error) {
+    if dbName == "" {
+        return nil, fmt.Errorf("database teu acan dipilih")
+    }
+    if !strings.HasPrefix(dbName, "db_") {
+        dbName = "db_" + dbName
+    }
 
+    dbPath := filepath.Join(config.DataDir, dbName)
+    files, err := os.ReadDir(dbPath)
+    if err != nil {
+        return nil, fmt.Errorf("gagal maca direktori database: %v", err)
+    }
+
+    var tables []string
+    for _, f := range files {
+        if !f.IsDir() && strings.HasSuffix(f.Name(), ".mg") {
+            tableName := strings.TrimSuffix(f.Name(), ".mg")
+            tables = append(tables, tableName)
+        }
+    }
+    return tables, nil
+}
