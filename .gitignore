@@ -6,3 +6,4 @@ maung
 builder.sh
 dist/*
 dist/
+.env
