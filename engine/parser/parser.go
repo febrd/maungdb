@@ -32,6 +32,9 @@ func Parse(query string) (*Command, error) {
 		if len(tokens) > 1 && (strings.ToUpper(tokens[1]) == "KACA" || strings.ToUpper(tokens[1]) == "VIEW") {
 			return parseCreateView(tokens)
 		}
+		if len(tokens) > 1 && (strings.ToUpper(tokens[1]) == "JARAMBAH" || strings.ToUpper(tokens[1]) == "TRIGGER") {
+			return parseCreateTrigger(tokens)
+		}
         if len(tokens) > 1 && strings.ToUpper(tokens[1]) == "CREATE" {
             return parseCreate(tokens[2:])
         }
@@ -76,6 +79,39 @@ func normalizeQuery(query string) string {
     query = strings.ReplaceAll(query, "__NEQ__", "!=")
 
     return query
+}
+
+func parseCreateTrigger(tokens []string) (*Command, error) {
+    if len(tokens) < 8 {
+        return nil, errors.New("syntax salah. Gunakeun: DAMEL JARAMBAH <nama> WAKTU <event> PADA <tabel> LAKUKAN <query>")
+    }
+
+    name := tokens[2]    
+    if strings.ToUpper(tokens[3]) != "WAKTU" && strings.ToUpper(tokens[3]) != "WHEN" {
+        return nil, errors.New("kedah nganggo kecap WAKTU sateuacan event")
+    }
+    event := strings.ToUpper(tokens[4]) 
+    if strings.ToUpper(tokens[5]) != "PADA" && strings.ToUpper(tokens[5]) != "ON" {
+        return nil, errors.New("kedah nganggo kecap PADA sateuacan nama tabel")
+    }
+    table := tokens[6]
+
+    if strings.ToUpper(tokens[7]) != "LAKUKAN" && strings.ToUpper(tokens[7]) != "DO" {
+        return nil, errors.New("kedah nganggo kecap LAKUKAN sateuacan query aksi")
+    }
+
+    actionParts := tokens[8:]
+    actionQL := strings.Join(actionParts, " ")
+
+    return &Command{
+        Type: CmdCreateTrigger,
+        TriggerDef: TriggerDefinition{
+            Name:     name,
+            Event:    event,
+            Table:    table,
+            ActionQL: actionQL,
+        },
+    }, nil
 }
 
 func parseCreateView(tokens []string) (*Command, error) {

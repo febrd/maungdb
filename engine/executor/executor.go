@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/febrd/maungdb/internal/config"
 
@@ -17,18 +18,38 @@ import (
 	"github.com/febrd/maungdb/engine/transaction"
 	"github.com/febrd/maungdb/engine/indexing"
 	"github.com/febrd/maungdb/engine/view"
+	"github.com/febrd/maungdb/engine/trigger"
+
+	
 
 
 
 )
 
 type ExecutionResult struct {
-	Columns []string
-	Rows    [][]string
-	Message string
+	Columns   []string   `json:"columns"`
+	Rows      [][]string `json:"rows"`
+	Message   string     `json:"message"`
+	TimeTaken string     `json:"time_taken"` 
 }
 
 func Execute(cmd *parser.Command) (*ExecutionResult, error) {
+    start := time.Now() 
+    res, err := executeInternal(cmd)
+
+    elapsed := time.Since(start)
+
+    if res != nil {
+        res.TimeTaken = fmt.Sprintf("%v", elapsed)
+        
+        if res.Message != "" {
+            res.Message += fmt.Sprintf(" (%v ms)", float64(elapsed.Microseconds())/1000.0)
+        }
+    }
+    return res, err
+}
+
+func executeInternal(cmd *parser.Command) (*ExecutionResult, error) {
 
     switch cmd.Type {
 
@@ -48,11 +69,66 @@ func Execute(cmd *parser.Command) (*ExecutionResult, error) {
         return execShowDB()
     case parser.CmdCreateView:
         return execCreateView(cmd)
+	case parser.CmdCreateTrigger:
+		return execCreateTrigger(cmd)
     case parser.CmdIndex:
         return execIndex(cmd)
     }
 
     return nil, fmt.Errorf("paréntah teu dikenal: %s", cmd.Type)
+}
+
+func runTriggers(dbName, table, event string) {
+    triggers, err := trigger.GlobalTriggerManager.GetTriggers(dbName, table, event)
+    if err != nil || len(triggers) == 0 {
+        return
+    }
+
+    fmt.Printf("⚡ [JARAMBAH] Ngajalankeun %d trigger keur %s di %s...\n", len(triggers), event, table)
+
+    for _, t := range triggers {
+        cmd, err := parser.Parse(t.ActionQL)
+        if err != nil {
+            fmt.Printf("❌ Trigger '%s' gagal parse: %v\n", t.Name, err)
+            continue
+        }
+
+        _, err = Execute(cmd) 
+        if err != nil {
+            fmt.Printf("❌ Trigger '%s' gagal eksekusi: %v\n", t.Name, err)
+        } else {
+             fmt.Printf("✅ Trigger '%s' suksés!\n", t.Name)
+        }
+    }
+}
+
+
+func execCreateTrigger(cmd *parser.Command) (*ExecutionResult, error) {
+    user, _ := auth.CurrentUser()
+    
+    def := cmd.TriggerDef
+
+	evt := strings.ToUpper(def.Event)
+    if evt == "SIMPEN" { evt = "INSERT" }
+    if evt == "OMEAN" { evt = "UPDATE" }
+    if evt == "MICEUN" { evt = "DELETE" }
+
+    t := trigger.TriggerAction{
+        Name:     def.Name,
+        Event:    evt,
+        Table:    def.Table,
+        ActionQL: def.ActionQL,
+        CreatedAt: time.Now().Format(time.RFC3339),
+    }
+
+	err := trigger.GlobalTriggerManager.SaveTrigger(user.Database, t)
+    if err != nil {
+        return nil, fmt.Errorf("gagal nyimpen jarambah: %v", err)
+    }
+
+    return &ExecutionResult{
+        Message: fmt.Sprintf("✅ Jarambah '%s' parantos dijieun keur tabel '%s'", def.Name, def.Table),
+    }, nil
 }
 
 func execShowDB() (*ExecutionResult, error) {
@@ -83,7 +159,7 @@ func execShowDB() (*ExecutionResult, error) {
             
             } else {
                 if isDBAllowed(user, dbName) {
-                    permission = "READ/WRITE"
+                    permission = "READ ONLY"
                 }
             }
 
@@ -329,6 +405,8 @@ func execInsert(cmd *parser.Command) (*ExecutionResult, error) {
         indexing.GlobalIndexManager.UpdateIndexOnInsert(cmd.Table, cmd.Data, s.GetFieldNames())
     }()
     
+	go runTriggers(user.Database, cmd.Table, "INSERT")
+
     return &ExecutionResult{
         Message: fmt.Sprintf("✅ Data asup ka table '%s'", cmd.Table),
     }, nil
@@ -758,6 +836,10 @@ func execUpdate(cmd *parser.Command) (*ExecutionResult, error) {
 		return nil, err
 	}
 
+	if updatedCount > 0 {
+		go runTriggers(user.Database, cmd.Table, "UPDATE")
+	}
+
 	return &ExecutionResult{
 		Message: fmt.Sprintf("✅ %d data geus diomean", updatedCount),
 	}, nil
@@ -823,6 +905,10 @@ func execDelete(cmd *parser.Command) (*ExecutionResult, error) {
             deletedCount++
         }
     }
+
+	if deletedCount > 0 {
+		go runTriggers(user.Database, cmd.Table, "DELETE")
+	}
 
     return &ExecutionResult{
         Message: fmt.Sprintf("✅ %d data geus dipiceun", deletedCount),
