@@ -48,7 +48,7 @@ graph TD;
 Cukup jalankan satu baris perintah untuk instalasi otomatis (Linux/Mac):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/febrd/maungdb/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/febrd/maungdb/main/installer.sh | bash
 
 ```
 
