@@ -10,6 +10,8 @@ const (
 	CmdDelete CommandType = "DELETE"
 	CmdTransaction CommandType = "TRANSACTION"
 	CmdIndex	CommandType = "INDEX"
+	CmdCreateView CommandType = "CREATE_VIEW"
+	CmdShowDB 	CommandType = "SHOW_DB"
 )
 
 type JoinClause struct {
@@ -36,6 +38,8 @@ type Command struct {
 	
     GroupBy   string      
     Having    []Condition 
+
+	ViewQuery string
 }
 
 type Condition struct {

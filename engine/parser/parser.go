@@ -27,7 +27,11 @@ func Parse(query string) (*Command, error) {
             Arg1: verb,
         }, nil
 
-    case "DAMEL", "BIKIN", "NYIEUN", "SCHEMA", "LAHAN":
+    case "DAMEL", "BIKIN", "NYIEUN", "SCHEMA":
+
+		if len(tokens) > 1 && (strings.ToUpper(tokens[1]) == "KACA" || strings.ToUpper(tokens[1]) == "VIEW") {
+			return parseCreateView(tokens)
+		}
         if len(tokens) > 1 && strings.ToUpper(tokens[1]) == "CREATE" {
             return parseCreate(tokens[2:])
         }
@@ -37,6 +41,12 @@ func Parse(query string) (*Command, error) {
         return parseInsert(tokens)
         
     case "TINGALI", "TENJO", "SELECT":
+		if len(tokens) > 1 {
+			token2 := strings.ToUpper(tokens[1])
+			if token2 == "PANGKAL" || token2 == "DATABASES" {
+				return &Command{Type: CmdShowDB}, nil
+			}
+		}
         return parseSelect(tokens)
         
     case "OMEAN", "ROBIH", "UPDATE":
@@ -66,6 +76,31 @@ func normalizeQuery(query string) string {
     query = strings.ReplaceAll(query, "__NEQ__", "!=")
 
     return query
+}
+
+func parseCreateView(tokens []string) (*Command, error) {
+	if len(tokens) < 5 {
+		return nil, errors.New("format salah: DAMEL KACA <nama> TINA <query>")
+	}
+
+	viewName := tokens[2]
+	tinaIdx := -1
+	if strings.ToUpper(tokens[3]) == "TINA" || strings.ToUpper(tokens[3]) == "AS" {
+		tinaIdx = 3
+	}
+
+	if tinaIdx == -1 {
+		return nil, errors.New("kedah nganggo kecap TINA atanapi AS")
+	}
+
+	queryParts := tokens[tinaIdx+1:]
+	viewQuery := strings.Join(queryParts, " ")
+
+	return &Command{
+		Type:      CmdCreateView,
+		Table:     viewName,
+		ViewQuery: viewQuery,
+	}, nil
 }
 
 func parseIndex(tokens []string) (*Command, error) {
