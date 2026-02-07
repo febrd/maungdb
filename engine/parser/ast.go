@@ -12,6 +12,7 @@ const (
 	CmdIndex	CommandType = "INDEX"
 	CmdCreateView CommandType = "CREATE_VIEW"
 	CmdShowDB 	CommandType = "SHOW_DB"
+	CmdCreateTrigger CommandType = "CREATE_TRIGGER"
 )
 
 type JoinClause struct {
@@ -40,6 +41,7 @@ type Command struct {
     Having    []Condition 
 
 	ViewQuery string
+	TriggerDef TriggerDefinition
 }
 
 type Condition struct {
@@ -47,4 +49,11 @@ type Condition struct {
 	Operator string
 	Value    string
 	LogicOp  string
+}
+
+type TriggerDefinition struct {
+    Name     string
+    Event    string
+    Table    string
+    ActionQL string
 }

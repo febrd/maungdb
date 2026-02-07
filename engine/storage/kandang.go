@@ -33,6 +33,10 @@ func GetDBPath() string {
     return ""
 }
 
+func GetDBPathExplicit(dbName string) string {
+    return filepath.Join(config.DataDir, "db_"+dbName)
+}
+
 func CommitInsert(tableName, rowData string) error {
     dbPath := GetDBPath()
     if dbPath == "" {

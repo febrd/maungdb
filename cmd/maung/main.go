@@ -379,7 +379,7 @@ func initDB() {
 }
 
 func help() {
-    fmt.Println("\n🐯  MAUNG DB v2.2 (Enterprise) - CHEAT SHEET  🐯")
+    fmt.Println("\n🐯  MAUNG DB v2.2.7 (belum lengkap bantu lengkapin) (Enterprise) - CHEAT SHEET  🐯")
     fmt.Println("================================================")
 
     fmt.Println("\n🛠️  PARÉNTAH SISTEM (System Commands)")
