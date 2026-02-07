@@ -4,8 +4,17 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"regexp"
 )
 
+var (
+  
+    ReIndung = regexp.MustCompile(`(?i)^JADI\s+INDUNG`)
+    ReAnak   = regexp.MustCompile(`(?i)^JADI\s+ANAK\s+NGINTIL\s+(.+)`)
+
+    ReCreateFTS = regexp.MustCompile(`(?i)^DAMEL\s+INDEKS_TEKS\s+(\w+)\s+DINA\s+(\w+)`)
+    ReFTS = regexp.MustCompile(`(?i)^KOREHAN\s+(\w+)\s+DINA\s+(\w+)\s+MILARI\s+"(.+)"`)
+)
 
 func Parse(query string) (*Command, error) {
     query = strings.TrimSpace(query)
@@ -35,6 +44,14 @@ func Parse(query string) (*Command, error) {
 		if len(tokens) > 1 && (strings.ToUpper(tokens[1]) == "JARAMBAH" || strings.ToUpper(tokens[1]) == "TRIGGER") {
 			return parseCreateTrigger(tokens)
 		}
+
+		if len(tokens) > 1 && strings.ToUpper(tokens[1]) == "INDEKS_TEKS" {
+            if matches := ReCreateFTS.FindStringSubmatch(query); len(matches) > 2 {
+                return &Command{Type: "CREATE_FTS", Table: matches[1], Column: matches[2]}, nil
+            }
+            return nil, errors.New("format DAMEL INDEKS_TEKS salah. Conto: DAMEL INDEKS_TEKS buku DINA judul")
+        }
+
         if len(tokens) > 1 && strings.ToUpper(tokens[1]) == "CREATE" {
             return parseCreate(tokens[2:])
         }
@@ -58,7 +75,10 @@ func Parse(query string) (*Command, error) {
     case "MICEUN", "PICEUN", "DELETE":
         return parseDelete(tokens)
 	case "TANDAIN", "TANDAAN", "TAWISAN":
-			return parseIndex(tokens)
+		return parseIndex(tokens)
+
+	case "KOREHAN", "JADI", "JANTEN":
+		return ParseCommand(query)
     default:
         return nil, errors.New("paréntah teu dikenal: " + verb)
     }
@@ -81,6 +101,32 @@ func normalizeQuery(query string) string {
     return query
 }
 
+func ParseCommand(input string) (*Command, error) {
+    input = strings.TrimSpace(input)
+
+    if ReIndung.MatchString(input) {
+        return &Command{Type: "JADI_INDUNG"}, nil
+    }
+
+    if matches := ReAnak.FindStringSubmatch(input); len(matches) > 1 {
+        return &Command{Type: "JADI_ANAK", Arg1: matches[1]}, nil 
+    }
+
+    if matches := ReCreateFTS.FindStringSubmatch(input); len(matches) > 2 {
+        return &Command{Type: "CREATE_FTS", Table: matches[1], Column: matches[2]}, nil
+    }
+
+    if matches := ReFTS.FindStringSubmatch(input); len(matches) > 3 {
+        return &Command{
+            Type: "KOREHAN", 
+            Table: matches[1], 
+            Column: matches[2], 
+            Arg1: matches[3],
+        }, nil
+    }
+
+    return nil, nil
+}
 func parseCreateTrigger(tokens []string) (*Command, error) {
     if len(tokens) < 8 {
         return nil, errors.New("syntax salah. Gunakeun: DAMEL JARAMBAH <nama> WAKTU <event> PADA <tabel> LAKUKAN <query>")

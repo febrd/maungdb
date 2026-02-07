@@ -50,37 +50,40 @@ type CreateSchemaRequest struct {
 	Fields []string `json:"fields"` 
 }
 
-func startServer(port string) {
-	if err := storage.Init(); err != nil {
-		panic(err)
-	}
+func startServer(port string, enableGUI bool) {
+    if err := storage.Init(); err != nil {
+        panic(err)
+    }
 
-	http.HandleFunc("/auth/login", handleLogin)
-	http.HandleFunc("/auth/logout", handleLogout)
-	http.HandleFunc("/auth/whoami", handleWhoami)
+    http.HandleFunc("/auth/login", handleLogin)
+    http.HandleFunc("/auth/logout", handleLogout)
+    http.HandleFunc("/auth/whoami", handleWhoami)
+    http.HandleFunc("/db/create", handleCreateDB)
+    http.HandleFunc("/db/use", handleUse)
+    http.HandleFunc("/schema/create", handleSchemaCreate)
+    http.HandleFunc("/query", handleQuery)
+    http.HandleFunc("/db/export", handleExport)
+    http.HandleFunc("/db/import", handleImport)
+    http.HandleFunc("/ai", handleAIChat)
 
-	http.HandleFunc("/db/create", handleCreateDB)
-	http.HandleFunc("/db/use", handleUse)
+    if enableGUI {
+        serveWebUI() 
+    }
 
-	http.HandleFunc("/schema/create", handleSchemaCreate)
-	http.HandleFunc("/query", handleQuery)
+    fmt.Println("🐯 MaungDB Server running")
+    
+    if enableGUI {
+        fmt.Println("🌐 Web UI  : http://localhost:" + port)
+    } else {
+        fmt.Println("🌐 Web UI  : DISABLED (--no-gui)")
+    }
+    
+    fmt.Println("🔌 API     : http://localhost:" + port + "/query")
 
-	http.HandleFunc("/db/export", handleExport)
-	http.HandleFunc("/db/import", handleImport)
-	
-	http.HandleFunc("/ai", handleAIChat)
-
-	serveWebUI()
-
-	fmt.Println("🐯 MaungDB Server running")
-	fmt.Println("🌐 Web UI  : http://localhost:" + port)
-	fmt.Println("🔌 API     : http://localhost:" + port + "/query")
-
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		fmt.Println("❌ Server error:", err)
-	}
+    if err := http.ListenAndServe(":"+port, nil); err != nil {
+        fmt.Println("❌ Server error:", err)
+    }
 }
-
 
 func setupHeader(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
