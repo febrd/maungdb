@@ -12,6 +12,8 @@ import (
 	"github.com/febrd/maungdb/internal/config"
 )
 
+
+
 type Column struct {
 	Name       string
 	Type       string
@@ -20,12 +22,22 @@ type Column struct {
 	IsUnique   bool     
 	IsNotNull  bool     
 	ForeignKey string  
+
+	Primary    bool     `json:"primary"`     
+	Unique     bool     `json:"unique"`      
+	NotNull    bool     `json:"not_null"`   
 }
 
 type Definition struct {
 	Columns     []Column
 	Perms       map[string][]string
 	Permissions map[string][]string 
+
+	Database string   `json:"database"`
+	Table    string   `json:"table"`
+	Read     []string `json:"read"`
+	Write    []string `json:"write"`
+
 }
 
 

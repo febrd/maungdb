@@ -406,3 +406,285 @@ TINGALI * TI karyawan DIMANA divisi=IT
 
 </body>
 </html>
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MaungDB v2.2.9 Enterprise Documentation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/public/css/style_docs.css" />
+    <style>
+        /* Tambahan Style Khusus v2.2.9 */
+        .badge-new { background: #10B981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7em; vertical-align: middle; margin-left: 5px; }
+        .synonym { color: #6B7280; font-style: italic; font-size: 0.9em; margin-left: 5px; }
+        code.cmd { color: #D946EF; font-weight: bold; } /* Warna Khas Command */
+    </style>
+</head>
+<body>
+
+    <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+    <div class="overlay" onclick="toggleSidebar()"></div>
+
+    <aside id="sidebar">
+        <div class="brand">🐯 Maung Docs <span style="font-size:0.5em; color:#aaa;">v2.2.9</span></div>
+        <div class="nav-scroll">
+            <a href="#overview" class="nav-item active" onclick="closeSidebar()">Overview & Roadmap</a>
+            <a href="#architecture" class="nav-item" onclick="closeSidebar()">Arsitektur Sistem</a>
+            <a href="#security" class="nav-item" onclick="closeSidebar()">Keamanan & Discovery</a>
+            
+            <div class="nav-group">Administrasi</div>
+            <a href="#cli" class="nav-item" onclick="closeSidebar()">CLI & Server</a>
+            <a href="#usermanagement" class="nav-item nav-sub" onclick="closeSidebar()">User Management</a>
+
+            <div class="nav-group">MaungQL Syntax</div>
+            <a href="#ddl" class="nav-item" onclick="closeSidebar()">DDL (Struktur)</a>
+            <a href="#dml" class="nav-item" onclick="closeSidebar()">DML (CRUD)</a>
+            <a href="#dql" class="nav-item" onclick="closeSidebar()">DQL (Select & Join)</a>
+            <a href="#grouping" class="nav-item nav-sub" onclick="closeSidebar()">Grouping & Aggregation <span class="badge-new">v2.2.5</span></a>
+            
+            <div class="nav-group">Advanced Features</div>
+            <a href="#transactions" class="nav-item" onclick="closeSidebar()">Transaksi (ACID) <span class="badge-new">v2.2.3</span></a>
+            <a href="#indexing" class="nav-item" onclick="closeSidebar()">Indexing (Hash) <span class="badge-new">v2.2.4</span></a>
+            <a href="#views" class="nav-item" onclick="closeSidebar()">Virtual Views (Kaca) <span class="badge-new">v2.2.6</span></a>
+            <a href="#triggers" class="nav-item" onclick="closeSidebar()">Triggers (Jarambah) <span class="badge-new">v2.3.0</span></a>
+            
+            <div class="nav-group">Enterprise Features</div>
+            <a href="#fts" class="nav-item" onclick="closeSidebar()">Full Text Search <span class="badge-new">v2.2.9</span></a>
+            <a href="#replication" class="nav-item" onclick="closeSidebar()">Replication Guard <span class="badge-new">v2.2.9</span></a>
+        </div>
+    </aside>
+
+    <main>
+        <div class="container">
+            
+            <section id="overview">
+                <h1>MaungDB <span class="badge badge-ent">v2.2.9 Enterprise</span></h1>
+                <img src="/public/assets/logonya.png" alt="Logo MaungDB" class="responsive-logo">
+
+                <p class="lead">
+                    <strong>MaungDB v2.2.9</strong> adalah rilis final untuk Core Engine (Local). Versi ini menutup celah fitur dengan kompetitor melalui penambahan <strong>Full Text Search (Inverted Index)</strong> dan <strong>Replication Logic Guard</strong>.
+                </p>
+                <p>
+                    Dibangun dengan <strong>Go (Golang)</strong>, MaungDB menggabungkan kecepatan NoSQL (Key-Value/Doc) dengan integritas SQL (ACID/Relational) dalam satu paket binary tunggal yang ringan.
+                </p>
+
+                <div class="info-box">
+                    <strong>Fitur Unggulan v2.2.9:</strong>
+                    <ul>
+                        <li><strong>🔍 Full Text Search (Korehan):</strong> Pencarian teks secepat kilat (O(1)) menggunakan Inverted Index.</li>
+                        <li><strong>🛡️ Replication Guard (Indung/Anak):</strong> Logika Role-Based untuk persiapan sistem terdistribusi (Master-Slave).</li>
+                        <li><strong>⚡ ACID Transactions (WAL):</strong> Jaminan data aman (Commit/Rollback) dengan Write-Ahead Logging.</li>
+                        <li><strong>🪞 Virtual Views (Kaca):</strong> Simpan query kompleks sebagai tabel virtual.</li>
+                        <li><strong>🤖 Automation (Jarambah):</strong> Trigger otomatis saat Insert/Update/Delete.</li>
+                        <li><strong>📊 Advanced Analytics:</strong> Dukungan <code>GROUP BY</code>, <code>HAVING</code>, dan Agregasi lengkap.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="architecture">
+                <h2>🏛️ Arsitektur & Konsep Internal</h2>
+                <p>MaungDB menggunakan pendekatan <strong>Hybrid Storage Engine</strong>:</p>
+                <ul>
+                    <li><strong>Data (.mg):</strong> Penyimpanan baris data (Append-Only log structure).</li>
+                    <li><strong>Index (.idx):</strong> Hash Map binary untuk pencarian cepat (Exact Match).</li>
+                    <li><strong>Text Index (.fts):</strong> Inverted Index JSON untuk pencarian kata kunci (Full Text).</li>
+                    <li><strong>WAL (.log):</strong> Jurnal transaksi untuk menjamin durabilitas (ACID).</li>
+                    <li><strong>View (.view):</strong> Definisi query virtual.</li>
+                </ul>
+            </section>
+
+            <section id="security">
+                <h2>🔐 Keamanan & Discovery <span class="badge-new">v2.2.7</span></h2>
+                <p>Sistem keamanan berbasis <strong>Role-Based Access Control (RBAC)</strong> dan Isolasi Database.</p>
+
+                <h3>Discovery (Lahan)</h3>
+                <p>User hanya dapat melihat database yang diizinkan untuk mereka.</p>
+                <pre><code class="cmd">TINGALI LAHAN</code> <span class="synonym">(Alias: SHOW DATABASES / SHOW LAHAN / PANGKAL)</span></pre>
+                
+                <h3>Roles</h3>
+                <ul>
+                    <li><code>supermaung</code>: Akses penuh (Root).</li>
+                    <li><code>admin</code>: Manajemen Skema (DDL).</li>
+                    <li><code>user</code>: Manipulasi Data (DML/DQL) pada DB tertentu.</li>
+                </ul>
+            </section>
+
+            <section id="cli">
+                <h2>💻 CLI & Server Management</h2>
+                
+                <h3>Server Start</h3>
+                <pre>
+# Mode Normal (Web UI + API)
+maung server 8080
+
+# Mode Headless (API Only - Hemat Resource)
+maung server 8080 --no-gui
+</pre>
+
+                <h3 id="usermanagement">User Management</h3>
+                <pre>
+maung createuser &lt;user&gt; &lt;pass&gt; &lt;role&gt;  # Buat User
+maung setdb &lt;user&gt; &lt;db1,db2&gt;           # Beri Akses DB
+maung whoami                           # Cek Sesi Aktif
+maung listuser                         # (Supermaung) List User
+</pre>
+            </section>
+
+            <section id="ddl">
+                <h2>🏗️ Data Definition Language (DDL)</h2>
+                <p>Perintah untuk mendefinisikan struktur database.</p>
+
+                <h3>DAMEL (Create) <span class="synonym">/ BIKIN / NYIEUN / SCHEMA</span></h3>
+                
+                <h4>1. Tabel Fisik</h4>
+                <pre>DAMEL karyawan nip:INT:PK, nama:STRING:NOT NULL, divisi:STRING</pre>
+                
+                <h4>2. Constraint (Aturan)</h4>
+                <ul>
+                    <li><code>:PK</code> (Primary Key)</li>
+                    <li><code>:FK(tbl.col)</code> (Foreign Key)</li>
+                    <li><code>:UNIQUE</code> (Data Unik)</li>
+                    <li><code>:NOT NULL</code> (Wajib Isi)</li>
+                </ul>
+            </section>
+
+            <section id="dml">
+                <h2>📝 Data Manipulation Language (DML)</h2>
+
+                <h3>SIMPEN (Insert) <span class="synonym">/ TENDEUN / INSERT</span></h3>
+                <pre>SIMPEN karyawan 101|Febriansah|IT</pre>
+
+                <h3>OMEAN (Update) <span class="synonym">/ ROBIH / UPDATE</span></h3>
+                <pre>OMEAN karyawan JADI divisi=HRD DIMANA nip=101</pre>
+                <p><em>Catatan: Gunakan <code>JADI</code>, <code>JANTEN</code>, atau <code>SET</code> sebelum kolom.</em></p>
+
+                <h3>MICEUN (Delete) <span class="synonym">/ PICEUN / DELETE</span></h3>
+                <pre>MICEUN TI karyawan DIMANA nip=101</pre>
+            </section>
+
+            <section id="dql">
+                <h2>👀 Data Query Language (DQL)</h2>
+
+                <h3>TINGALI (Select) <span class="synonym">/ TENJO / SELECT</span></h3>
+                <pre>
+TINGALI * TI karyawan
+TINGALI nama, divisi TI karyawan DIMANA divisi = 'IT'
+</pre>
+
+                <h3>JOIN (Relasi) <span class="synonym">/ GABUNG / HIJIKEUN</span></h3>
+                <pre>
+... GABUNG divisi DINA karyawan.id_div = divisi.id          (INNER)
+... KENCA GABUNG divisi DINA ...                            (LEFT)
+... KATUHU GABUNG divisi DINA ...                           (RIGHT)
+</pre>
+
+                <h3 id="grouping">Grouping & Aggregation <span class="badge-new">v2.2.5</span></h3>
+                <p>Melakukan pengelompokan data statistik.</p>
+                <pre>
+TINGALI divisi, RATA(gaji) 
+TI karyawan 
+KUMPULKEUN DUMASAR divisi      <span class="synonym">(GROUP BY)</span>
+MUN SYARATNA RATA(gaji) > 5jt  <span class="synonym">(HAVING)</span>
+</pre>
+                <p><strong>Fungsi:</strong> <code>JUMLAH()</code>, <code>TOTAL()</code>, <code>RATA()</code>, <code>PANGGEDENA()</code>, <code>PANGLEUTIKNA()</code>.</p>
+            </section>
+
+            <section id="transactions">
+                <h2>🔐 Transaksi (ACID) <span class="badge-new">v2.2.3</span></h2>
+                <p>Menjamin integritas data. Perubahan tidak disimpan permanen sebelum Commit.</p>
+                
+                <ul>
+                    <li><code>MIMITIAN</code> <span class="synonym">/ BEGIN</span> : Mulai Transaksi (Masuk ke WAL Buffer).</li>
+                    <li><code>JADIKEUN</code> <span class="synonym">/ COMMIT</span> : Simpan Permanen ke Disk.</li>
+                    <li><code>BATALKEUN</code> <span class="synonym">/ ROLLBACK</span> : Batalkan semua perubahan sejak MIMITIAN.</li>
+                </ul>
+            </section>
+
+            <section id="indexing">
+                <h2>⚡ Indexing (Hash) <span class="badge-new">v2.2.4</span></h2>
+                <p>Mempercepat pencarian data eksak (<code>=</code>) dari O(N) menjadi O(1).</p>
+                <pre>TANDAIN karyawan DINA nip <span class="synonym">/ TANDAAN / TAWISAN</span></pre>
+            </section>
+
+            <section id="views">
+                <h2>🪞 Virtual Views (Kaca) <span class="badge-new">v2.2.6</span></h2>
+                <p>Menyimpan query kompleks sebagai tabel virtual yang bisa di-query ulang.</p>
+                <pre>
+DAMEL KACA laporan_gaji TINA 
+TINGALI nama, gaji TI karyawan WHERE gaji > 5000000
+</pre>
+                <p><em>Akses:</em> <code>TINGALI * TI laporan_gaji</code></p>
+            </section>
+
+            <section id="triggers">
+                <h2>🤖 Triggers (Jarambah) <span class="badge-new">v2.3.0</span></h2>
+                <p>Otomatisasi logika database (Event Listener).</p>
+                <pre>
+DAMEL JARAMBAH log_audit 
+WAKTU OMEAN PADA karyawan 
+LAKUKAN SIMPEN audit_log "Data Berubah", NOW()
+</pre>
+            </section>
+
+            <section id="fts">
+                <h2>🔍 Full Text Search (Korehan) <span class="badge-new">v2.2.9</span></h2>
+                <p>Pencarian teks canggih menggunakan Inverted Index. Jauh lebih cepat dari <code>JIGA (LIKE)</code>.</p>
+                
+                <h3>1. Buat Index Teks</h3>
+                <pre>DAMEL INDEKS_TEKS artikel DINA judul</pre>
+                
+                <h3>2. Lakukan Pencarian</h3>
+                <pre>KOREHAN artikel DINA judul MILARI "Maung"</pre>
+            </section>
+
+            <section id="replication">
+                <h2>🛡️ Replication Guard (Indung & Anak) <span class="badge-new">v2.2.9</span></h2>
+                <p>Logika peran server untuk arsitektur Master-Slave.</p>
+                
+                <h3>JADI INDUNG (Master)</h3>
+                <pre>JADI INDUNG</pre>
+                <p>Mode Default. Server bisa Baca (Read) dan Tulis (Write).</p>
+
+                <h3>JADI ANAK (Slave)</h3>
+                <pre>JADI ANAK NGINTIL 192.168.1.100</pre>
+                <p>Mode Read-Only. Server menolak semua operasi tulis (<code>SIMPEN</code>, <code>OMEAN</code>, <code>MICEUN</code>) untuk mencegah inkonsistensi data.</p>
+            </section>
+
+            <footer style="margin-top: 100px; padding-top: 30px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 0.9rem; display: flex; justify-content: space-between;">
+                <div>
+                    &copy; 2026 <strong>MaungDB Inc.</strong><br>
+                    Made with ❤️ & ☕ in Bandung, West Java.
+                </div>
+                <div style="text-align: right;">
+                    Documentation v2.2.9<br>
+                    Enterprise Edition (Final Core)
+                </div>
+            </footer>
+
+        </div>
+    </main>
+
+    <a href="/public/app.html" class="back-btn" title="Back to Maung Studio">←</a>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.querySelector('.overlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        function closeSidebar() {
+            if (window.innerWidth <= 900) {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.querySelector('.overlay');
+                sidebar.classList.remove('active');
+                overlay.classList.remove('active');
+            }
+        }
+    </script>
+
+</body>
+</html>

@@ -3,16 +3,39 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"strings"
-	"os"
 	"io"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/febrd/maungdb/engine/auth"
 	"github.com/febrd/maungdb/engine/executor"
 	"github.com/febrd/maungdb/engine/parser"
 	"github.com/febrd/maungdb/engine/schema"
 	"github.com/febrd/maungdb/engine/storage"
+	"github.com/febrd/maungdb/internal/config"
 )
+
+type ColumnInfo struct {
+    Name        string `json:"name"`
+    Type        string `json:"type"`
+    IsPrimary   bool   `json:"is_primary"`
+    IsUnique    bool   `json:"is_unique"`
+    IsNotNull   bool   `json:"is_not_null"`
+    ForeignKey  string `json:"foreign_key,omitempty"` 
+}
+
+type TableInfo struct {
+    Name    string       `json:"name"`
+    Columns []ColumnInfo `json:"columns"`
+    RowCount int         `json:"row_count"`
+}
+
+type SchemaInfoResponse struct {
+    Database string      `json:"database"`
+    Tables   []TableInfo `json:"tables"`
+}
 
 type LoginRequest struct {
 	Username string `json:"username"`
@@ -41,52 +64,60 @@ type QueryRequest struct {
 type APIResponse struct {
 	Success bool                      `json:"success"`
 	Message string                    `json:"message,omitempty"`
-	Data    *executor.ExecutionResult `json:"data,omitempty"`
+	Data    interface{}               `json:"data,omitempty"`
 	Error   string                    `json:"error,omitempty"`
 }
 
 type CreateSchemaRequest struct {
 	Table  string   `json:"table"`
-	Fields []string `json:"fields"` 
+	Fields []string `json:"fields"`
 }
 
+
 func startServer(port string, enableGUI bool) {
-    if err := storage.Init(); err != nil {
-        panic(err)
-    }
+	if err := storage.Init(); err != nil {
+		panic(err)
+	}
 
-    http.HandleFunc("/auth/login", handleLogin)
-    http.HandleFunc("/auth/logout", handleLogout)
-    http.HandleFunc("/auth/whoami", handleWhoami)
-    http.HandleFunc("/db/create", handleCreateDB)
-    http.HandleFunc("/db/use", handleUse)
-    http.HandleFunc("/schema/create", handleSchemaCreate)
-    http.HandleFunc("/query", handleQuery)
-    http.HandleFunc("/db/export", handleExport)
-    http.HandleFunc("/db/import", handleImport)
-    http.HandleFunc("/ai", handleAIChat)
+	http.HandleFunc("/auth/login", handleLogin)
+	http.HandleFunc("/auth/logout", handleLogout)
+	http.HandleFunc("/auth/whoami", handleWhoami)
+	
+	http.HandleFunc("/db/create", handleCreateDB)
+	http.HandleFunc("/db/use", handleUse)
+	http.HandleFunc("/db/export", handleExport)
+	http.HandleFunc("/db/import", handleImport)
+	
+	http.HandleFunc("/schema/create", handleSchemaCreate)
+	http.HandleFunc("/query", handleQuery)
+	http.HandleFunc("/ai", handleAIChat)
+	http.HandleFunc("/health-check", handleHealthCheck)
 
-    if enableGUI {
-        serveWebUI() 
-    }
+	http.HandleFunc("/schema/info", handleSchemaInfo)
 
-    fmt.Println("🐯 MaungDB Server running")
-    
-    if enableGUI {
-        fmt.Println("🌐 Web UI  : http://localhost:" + port)
-    } else {
-        fmt.Println("🌐 Web UI  : DISABLED (--no-gui)")
-    }
-    
-    fmt.Println("🔌 API     : http://localhost:" + port + "/query")
+	if enableGUI {
+		serveWebUI()
+	}
 
-    if err := http.ListenAndServe(":"+port, nil); err != nil {
-        fmt.Println("❌ Server error:", err)
-    }
+	fmt.Println("🐯 MaungDB Server running")
+
+	if enableGUI {
+		fmt.Println("🌐 Web UI  : http://localhost:" + port)
+	} else {
+		fmt.Println("🌐 Web UI  : DISABLED (--no-gui)")
+	}
+
+	fmt.Println("🔌 API     : http://localhost:" + port + "/query")
+
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		fmt.Println("❌ Server error:", err)
+	}
 }
 
 func setupHeader(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept")
 	w.Header().Set("Content-Type", "application/json")
 }
 
@@ -97,7 +128,7 @@ func sendError(w http.ResponseWriter, msg string) {
 	})
 }
 
-func sendSuccess(w http.ResponseWriter, msg string, data *executor.ExecutionResult) {
+func sendSuccess(w http.ResponseWriter, msg string, data interface{}) {
 	_ = json.NewEncoder(w).Encode(APIResponse{
 		Success: true,
 		Message: msg,
@@ -108,6 +139,12 @@ func sendSuccess(w http.ResponseWriter, msg string, data *executor.ExecutionResu
 
 func handleLogin(w http.ResponseWriter, r *http.Request) {
 	setupHeader(w)
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		sendError(w, "Method kudu POST")
 		return
@@ -125,15 +162,52 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, _ := auth.CurrentUser()
+	
+	responseData := map[string]string{
+		"username": user.Username,
+		"role":     user.Role,
+		"database": user.Database,
+	}
+
 	sendSuccess(
 		w,
 		fmt.Sprintf("✅ Login sukses salaku %s (%s)", user.Username, user.Role),
-		nil,
+		responseData,
 	)
+}
+
+func handleHealthCheck(w http.ResponseWriter, r *http.Request) {
+	setupHeader(w)
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		sendError(w, "Method kudu GET")
+		return
+	}
+
+	status := "ok"
+
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":   status,
+		"service":  "maungdb",
+		"version":  config.VERSION,
+		"time":     fmt.Sprintf("%d", time.Now().Unix()),
+	})
 }
 
 func handleLogout(w http.ResponseWriter, r *http.Request) {
 	setupHeader(w)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		sendError(w, "Method kudu POST")
 		return
@@ -149,6 +223,11 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 
 func handleWhoami(w http.ResponseWriter, r *http.Request) {
 	setupHeader(w)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 
 	user, err := auth.CurrentUser()
 	if err != nil {
@@ -170,9 +249,14 @@ func handleWhoami(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-
 func handleCreateDB(w http.ResponseWriter, r *http.Request) {
 	setupHeader(w)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		sendError(w, "Method kudu POST")
 		return
@@ -199,6 +283,12 @@ func handleCreateDB(w http.ResponseWriter, r *http.Request) {
 
 func handleUse(w http.ResponseWriter, r *http.Request) {
 	setupHeader(w)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		sendError(w, "Method kudu POST")
 		return
@@ -225,6 +315,12 @@ func handleUse(w http.ResponseWriter, r *http.Request) {
 
 func handleSchemaCreate(w http.ResponseWriter, r *http.Request) {
 	setupHeader(w)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		sendError(w, "Method kudu POST")
 		return
@@ -257,7 +353,7 @@ func handleSchemaCreate(w http.ResponseWriter, r *http.Request) {
 
 	if len(columns) == 0 {
 		sendError(w, "Gagal parsing definisi kolom")
-		return
+        return
 	}
 
 	for i := range columns {
@@ -279,113 +375,218 @@ func handleSchemaCreate(w http.ResponseWriter, r *http.Request) {
 	if err := storage.InitTableFile(user.Database, req.Table); err != nil {
 		fmt.Println("Warning: Gagal init storage file", err)
 	}
-	
+
 	sendSuccess(w, fmt.Sprintf("✅ Schema tabel '%s' parantos didamel!", req.Table), nil)
 }
 
 func handleQuery(w http.ResponseWriter, r *http.Request) {
-	setupHeader(w)
-	if r.Method != http.MethodPost {
-		sendError(w, "Method kudu POST")
-		return
-	}
+    setupHeader(w)
 
-	user, err := auth.CurrentUser()
-	if err != nil {
-		sendError(w, "❌ Anjeun kedah login heula")
-		return
-	}
+    if r.Method == "OPTIONS" {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
 
-	if user.Database == "" {
-		sendError(w, "❌ Database can dipilih (POST /db/use)")
-		return
-	}
+    if r.Method != http.MethodPost {
+        sendError(w, "Method kudu POST")
+        return
+    }
 
-	if err := auth.RequireRole("user"); err != nil {
-		sendError(w, err.Error())
-		return
-	}
+    user, err := auth.CurrentUser()
+    if err != nil {
+        sendError(w, "❌ Anjeun kedah login heula")
+        return
+    }
 
-	var req QueryRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendError(w, "JSON Error")
-		return
-	}
+    var req QueryRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        sendError(w, "JSON Error: Format request teu valid")
+        return
+    }
 
-	cmd, err := parser.Parse(req.Query)
-	if err != nil {
-		sendError(w, "Syntax Error: "+err.Error())
-		return
-	}
+    cmd, err := parser.Parse(req.Query)
+    if err != nil {
+        sendError(w, "Syntax Error: "+err.Error())
+        return
+    }
 
-	result, err := executor.Execute(cmd)
-	if err != nil {
-		sendError(w, "Execution Error: "+err.Error())
-		return
-	}
+    isSystemCmd := (cmd.Type == "SHOW_DB" || cmd.Type == "JADI_INDUNG" || cmd.Type == "JADI_ANAK")
 
-	sendSuccess(w, "Query Berhasil", result)
+    if !isSystemCmd {
+        if user.Database == "" {
+            sendError(w, "❌ Database can dipilih. Gunakeun menu 'Switch Database' heula.")
+            return
+        }
+    }
+
+    switch cmd.Type {
+    case parser.CmdCreate, parser.CmdCreateView, parser.CmdCreateTrigger, parser.CmdIndex, "CREATE_FTS":
+        if user.Role != "admin" && user.Role != "supermaung" {
+            sendError(w, "⛔ Akses Ditolak: Ngan Admin/Supermaung nu tiasa ngarobah struktur/schema.")
+            return
+        }
+    
+    case "JADI_INDUNG", "JADI_ANAK":
+        if user.Role != "supermaung" {
+            sendError(w, "⛔ Akses Ditolak: Konfigurasi Server khusus Supermaung.")
+            return
+        }
+    }
+
+    if err := auth.RequireRole("user"); err != nil {
+        sendError(w, err.Error())
+        return
+    }
+
+    result, err := executor.Execute(cmd)
+    if err != nil {
+        sendError(w, "Execution Error: "+err.Error())
+        return
+    }
+
+    sendSuccess(w, "Query Berhasil", result)
 }
 
 func handleExport(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Access-Control-Allow-Origin", "*")
-    if r.Method == "OPTIONS" { return }
-    table := r.URL.Query().Get("table")
-    if table == "" {
-        http.Error(w, "Parameter 'table' wajib diisi", http.StatusBadRequest)
-        return
-    }
+	setupHeader(w) 
 
-    filePath, err := storage.ExportCSV(table)
-    if err != nil {
-        http.Error(w, "Gagal export: "+err.Error(), http.StatusInternalServerError)
-        return
-    }
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 
-    w.Header().Set("Content-Disposition", "attachment; filename="+table+".csv")
-    w.Header().Set("Content-Type", "text/csv")
-    http.ServeFile(w, r, filePath)
+	table := r.URL.Query().Get("table")
+	if table == "" {
+		http.Error(w, "Parameter 'table' wajib diisi", http.StatusBadRequest)
+		return
+	}
 
+	filePath, err := storage.ExportCSV(table)
+	if err != nil {
+		http.Error(w, "Gagal export: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Disposition", "attachment; filename="+table+".csv")
+	w.Header().Set("Content-Type", "text/csv")
+	http.ServeFile(w, r, filePath)
 }
 
 func handleImport(w http.ResponseWriter, r *http.Request) {
+	setupHeader(w)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != "POST" {
+		return
+	}
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		sendError(w, "File terlalu besar")
+		return
+	}
+
+	file, _, err := r.FormFile("csv_file")
+	if err != nil {
+		sendError(w, "Gagal maca file")
+		return
+	}
+	defer file.Close()
+
+	tableName := r.FormValue("table")
+	if tableName == "" {
+		sendError(w, "Ngaran tabel kosong")
+		return
+	}
+
+	tempFile, err := os.CreateTemp("", "upload-*.csv")
+	if err != nil {
+		sendError(w, "Gagal nyieun temp file")
+		return
+	}
+	defer os.Remove(tempFile.Name())
+	if _, err := io.Copy(tempFile, file); err != nil {
+		sendError(w, "Gagal nyalin file")
+		return
+	}
+
+	count, err := storage.ImportCSV(tableName, tempFile.Name())
+	if err != nil {
+		sendError(w, "Gagal import: "+err.Error())
+		return
+	}
+
+	sendSuccess(w, fmt.Sprintf("✅ Suksés import %d baris data ka tabel '%s'", count, tableName), nil)
+}
+
+func handleSchemaInfo(w http.ResponseWriter, r *http.Request) {
     setupHeader(w)
-    if r.Method != "POST" { return }
-
-    if err := r.ParseMultipartForm(10 << 20); err != nil {
-        sendError(w, "File terlalu besar")
+    
+    if r.Method != "GET" {
+        sendError(w, "Method kudu GET")
         return
     }
 
-    file, _, err := r.FormFile("csv_file")
+    user, err := auth.CurrentUser()
     if err != nil {
-        sendError(w, "Gagal maca file")
-        return
-    }
-    defer file.Close()
-
-    tableName := r.FormValue("table")
-    if tableName == "" {
-        sendError(w, "Ngaran tabel kosong")
+        sendError(w, "❌ Anjeun kedah login heula")
         return
     }
 
-    tempFile, err := os.CreateTemp("", "upload-*.csv")
+    if user.Database == "" {
+        sendError(w, "❌ Database can dipilih. Gunakeun menu 'Use Database' heula.")
+        return
+    }
+
+    tableNames, err := storage.ListTables(user.Database)
     if err != nil {
-        sendError(w, "Gagal nyieun temp file")
-        return
-    }
-    defer os.Remove(tempFile.Name())
-    if _, err := io.Copy(tempFile, file); err != nil {
-        sendError(w, "Gagal nyalin file")
+        sendError(w, "Gagal maca tabel: "+err.Error())
         return
     }
 
-    count, err := storage.ImportCSV(tableName, tempFile.Name())
-    if err != nil {
-        sendError(w, "Gagal import: "+err.Error())
-        return
+    var tablesInfo []TableInfo
+
+    for _, tblName := range tableNames {
+        s, err := schema.Load(user.Database, tblName)
+        if err != nil {
+            fmt.Println("Warning: Gagal load schema tabel", tblName, err)
+            continue
+        }
+
+        var colsInfo []ColumnInfo
+        for _, col := range s.Columns {
+            colsInfo = append(colsInfo, ColumnInfo{
+                Name:       col.Name,
+                Type:       string(col.Type),
+                IsPrimary:  col.Primary,
+                IsUnique:   col.Unique,
+                IsNotNull:  col.NotNull,
+                ForeignKey: col.ForeignKey,
+            })
+        }
+        
+        rows, _ := storage.ReadAll(tblName)
+        
+        tablesInfo = append(tablesInfo, TableInfo{
+            Name:     tblName,
+            Columns:  colsInfo,
+            RowCount: len(rows),
+        })
     }
 
-    sendSuccess(w, fmt.Sprintf("✅ Suksés import %d baris data ka tabel '%s'", count, tableName), nil)
+    respData := SchemaInfoResponse{
+        Database: user.Database,
+        Tables:   tablesInfo,
+    }
+
+
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(APIResponse{
+        Success: true,
+        Message: "Schema info loaded",
+        Data:    respData,
+    })
 }
