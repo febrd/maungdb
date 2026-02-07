@@ -86,10 +86,17 @@ func main() {
 
     case "server":
         port := "7070"
-        if len(os.Args) > 2 {
-            port = os.Args[2]
+        enableGUI := true
+        serverArgs := os.Args[2:]
+        for _, arg := range serverArgs {
+            if arg == "--no-gui" {
+                enableGUI = false
+            } else {
+                port = arg
+            }
         }
-        startServer(port)
+
+        startServer(port, enableGUI)
 
     default:
         help()
@@ -378,73 +385,76 @@ func initDB() {
     fmt.Println("Default user: maung / maung (supermaung)")
 }
 
+
 func help() {
-    fmt.Println("\n🐯  MAUNG DB v2.2.7 (belum lengkap bantu lengkapin) (Enterprise) - CHEAT SHEET  🐯")
-    fmt.Println("================================================")
+	fmt.Println("\n🐯  MAUNG DB v2.2.8 (Enterprise Edition) - CHEAT SHEET LENGKAP  🐯")
+	fmt.Println("==================================================================")
+	fmt.Println("Catetan: Tanda '/' hartosna 'ATAWA' (Sinonim/Alias)")
 
-    fmt.Println("\n🛠️  PARÉNTAH SISTEM (System Commands)")
-    fmt.Println("  maung init                       : Inisialisasi folder data")
-    fmt.Println("  maung server [port]              : Ngahurungkeun server API/Web")
-    fmt.Println("  maung login <user> <pass>        : Masuk (Otentikasi)")
-    fmt.Println("  maung logout                     : Keluar")
-    fmt.Println("  maung whoami                     : Cek status user & database")
-    fmt.Println("  maung createuser <u,p,role>      : Ngadamel user anyar")
-    fmt.Println("  maung setdb <user> <db1,db2>     : Mere akses database")
-    fmt.Println("  maung createdb <name>            : Ngadamel database")
-    fmt.Println("  maung use <name>                 : Milih database")
+	fmt.Println("\n🛠️  PARÉNTAH SISTEM (System & Discovery)")
+	fmt.Println("  maung init                       : Inisialisasi folder data")
+	fmt.Println("  maung server [port]              : Ngahurungkeun server API/Kalau port Kosong default: 7070")
+	fmt.Println("  maung login <u,p>                : Masuk (Login)")
+	fmt.Println("  maung logout                     : Keluar")
+	fmt.Println("  maung whoami                     : Cek user aktif")
+	fmt.Println("  TINGALI / SELECT ...             : Perintah Query Dasar")
+	fmt.Println("  ...  PANGKAL / DATABASES  : Ningali daptar database")
+	fmt.Println("  maung use <name>                 : Milih database aktip")
 
-    fmt.Println("\n🏗️  DEFINISI TABEL (DDL) & CONSTRAINT")
-    fmt.Println("  DAMEL <tbl> <cols>               : Ngadamel tabel anyar")
-    fmt.Println("    Format Kolom: nama:TIPE:CONSTRAINT")
-    fmt.Println("    :PK                            : Primary Key (Unik + Not Null)")
-    fmt.Println("    :UNIQUE                        : Data teu kenging kembar")
-    fmt.Println("    :NOT NULL                      : Data wajib diisi")
-    fmt.Println("    :FK(tabel.col)                 : Foreign Key (Relasi)")
-    fmt.Println("  Conto: DAMEL siswa nis:INT:PK, nama:STRING:NOT NULL, kelas:INT:FK(kelas.id)")
+	fmt.Println("\n🏗️  DEFINISI STRUKTUR (DDL)")
+	fmt.Println("  DAMEL / BIKIN / NYIEUN / SCHEMA  : Keyword nyieun objek")
+	fmt.Println("  ... <tbl> <cols>                 : Nyieun Tabel")
+	fmt.Println("  ... KACA / VIEW <nm> TINA...     : Nyieun View (Tabel Virtual)")
+	fmt.Println("  ... JARAMBAH / TRIGGER <nm>...   : Nyieun Trigger")
+	fmt.Println("      Format Waktu: WAKTU / WHEN <event> PADA / ON <table>")
+	fmt.Println("      Format Aksi : LAKUKAN / DO <query>")
 
-    fmt.Println("\n📝  MANIPULASI DATA (CRUD)")
-    fmt.Println("  SIMPEN <tbl> val1|val2           : Nambahkeun data (Delimiter |)")
-    fmt.Println("  OMEAN <tbl> JADI c=v DIMANA...   : Update data")
-    fmt.Println("  MICEUN TI <tbl> DIMANA...        : Hapus data")
-    
-    // -- UPDATE HELP v3.0 --
-    fmt.Println("\n🔐  TRANSAKSI (ACID)")
-    fmt.Println("  MIMITIAN                         : Mulai transaksi")
-    fmt.Println("  JADIKEUN                         : Simpan permanen (Commit)")
-    fmt.Println("  BATALKEUN                        : Batalkan (Rollback)")
-    // ----------------------
+	fmt.Println("\n🚀  OPTIMASI & PENCARIAN (Performance)")
+	fmt.Println("  TANDAIN / TANDAAN / TAWISAN      : Indexing Hash (Cepat)")
+	fmt.Println("      Format: ... <tbl> DINA / ON <col>")
+	fmt.Println("  DAMEL INDEKS_TEKS                : Indexing Teks (Inverted)")
+	fmt.Println("  KOREHAN <tbl> DINA <c> MILARI... : Full Text Search")
+	fmt.Println("  JELASKEUN <query>                : Analisa Query (Explain)")
 
-    fmt.Println("\n👀  PANGGIL DATA (SELECT)")
-    fmt.Println("  TINGALI <tbl>                    : Ningali sadaya data")
-    fmt.Println("  TINGALI <c1,c2> TI <tbl>         : Ningali kolom spesifik")
+	fmt.Println("\n📝  MANIPULASI DATA (CRUD)")
+	fmt.Println("  SIMPEN / TENDEUN / INSERT        : Nambah data")
+	fmt.Println("  OMEAN / ROBIH / UPDATE           : Update data")
+	fmt.Println("      Format: ... JADI / JANTEN / SET <c>=<v>")
+	fmt.Println("  MICEUN / PICEUN / DELETE         : Hapus data")
+	fmt.Println("      Format: ... TI / FROM <tbl>")
+	
+	fmt.Println("\n🔐  TRANSAKSI (ACID)")
+	fmt.Println("  MIMITIAN / BEGIN                 : Mulai transaksi")
+	fmt.Println("  JADIKEUN / COMMIT                : Simpan permanen")
+	fmt.Println("  BATALKEUN / ROLLBACK             : Batalkan perubahan")
 
-    fmt.Println("\n🔗  RELASI TABEL (JOIN)")
-    fmt.Println("  ... GABUNG <t2> DINA t1.a=t2.b   : Inner Join (Data nu cocok hungkul)")
-    fmt.Println("  ... KENCA GABUNG <t2> DINA...    : Left Join (Sadaya data kiri)")
-    fmt.Println("  ... KATUHU GABUNG <t2> DINA...   : Right Join (Sadaya data kanan)")
+	fmt.Println("\n👀  ANALISA DATA (SELECT)")
+	fmt.Println("  TINGALI / TENJO / SELECT         : Muka data")
+	fmt.Println("  ... TI / FROM <tbl>              : Sumber tabel")
+	fmt.Println("  ... KUMPULKEUN / GROUP           : Grouping")
+	fmt.Println("      ... DUMASAR / BY <col>")
+	fmt.Println("  ... MUN / HAVING [SYARATNA]      : Filter hasil group")
 
-    fmt.Println("\n🔍  FILTER & LOGIKA")
-    fmt.Println("  DIMANA <kolom> = <nilai>         : Kondisi (Where)")
-    fmt.Println("  ... SARENG ...                   : Logika AND")
-    fmt.Println("  ... ATAWA ...                    : Logika OR")
-    fmt.Println("  ... JIGA 'teks'                  : Pencarian (Like)")
+	fmt.Println("\n🔗  RELASI TABEL (JOIN)")
+	fmt.Println("  ... GABUNG / HIJIKEUN / JOIN     : Inner Join")
+	fmt.Println("  ... KENCA / LEFT ...             : Left Join")
+	fmt.Println("  ... KATUHU / RIGHT ...           : Right Join")
+	fmt.Println("  ... PINUH / FULL ...             : Full Join")
+	fmt.Println("  ... DINA / ON <kondisi>          : Syarat Join")
 
-    fmt.Println("\n⚡  PENGATUR DATA")
-    fmt.Println("  RUNTUYKEUN <col> [TI_LUHUR/TI_HANDAP/NAEK/TURUN]      : Order By (Naek/Turun)")
-    fmt.Println("  SAKADAR <n>                      : Limit (Batesan baris)")
-    fmt.Println("  LIWATAN <n>                      : Offset (Loncatan baris)")
+	fmt.Println("\n🛡️  REPLIKASI (Enterprise)")
+	fmt.Println("  JADI INDUNG                      : Set Master (Read/Write)")
+	fmt.Println("  JADI ANAK NGINTIL <ip>           : Set Slave (Read Only)")
 
-    fmt.Println("\n🧮  ARITMATIKA & AGREGASI")
-    fmt.Println("  JUMLAH()                         : Ngitung total baris (Count)")
-    fmt.Println("  RATA(col)                        : Rata-rata (Avg)")
-    fmt.Println("  TOTAL(col)                       : Penjumlahan (Sum)")
-    fmt.Println("  PANGGEDENA(col)                  : Nilai Maksimum (Max)")
-    fmt.Println("  PANGLEUTIKNA(col)                : Nilai Minimum (Min)")
+	fmt.Println("\n🔍  FILTER & LOGIKA & URUTAN")
+	fmt.Println("  DIMANA / WHERE <k>=<v>           : Kondisi")
+	fmt.Println("  ... SARENG / AND                 : Logika DAN")
+	fmt.Println("  ... ATAWA / OR                   : Logika ATAU")
+	fmt.Println("  RUNTUYKEUN / ORDER               : Urutkeun data")
+	fmt.Println("      ... NAEK / ASC / TI_HANDAP   : Urutan A-Z")
+	fmt.Println("      ... TURUN / DESC / TI_LUHUR  : Urutan Z-A")
+	fmt.Println("  SAKADAR / LIMIT <n>              : Batesan jumlah")
+	fmt.Println("  LIWATAN / OFFSET <n>             : Loncatan awal")
 
-    fmt.Println("\n💎  TIPE DATA (Data Types)")
-    fmt.Println("  INT, FLOAT, BOOL                 : Angka & Logika")
-    fmt.Println("  STRING, TEXT, CHAR(n)            : Teks & Karakter")
-    fmt.Println("  DATE                             : Tanggal (YYYY-MM-DD)")
-    fmt.Println("  ENUM(a,b,c)                      : Pilihan Terbatas")
-    fmt.Println("================================================")
+	fmt.Println("==================================================================")
 }

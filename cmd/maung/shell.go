@@ -87,15 +87,23 @@ func startShell() {
 			whoami()
 			continue
 
+
 		case "server":
 			port := "7070"
-			if len(os.Args) > 2 {
-				port = os.Args[2]
+			enableGUI := true
+			serverArgs := os.Args[2:]
+			for _, arg := range serverArgs {
+				if arg == "--no-gui" {
+					enableGUI = false
+				} else {
+					port = arg
+				}
 			}
-			startServer(port)
+
+			startServer(port, enableGUI)
 			continue
 
-		case "createuser":
+		case "createuser", "CREATEUSER":
 			if err := auth.RequireRole("supermaung"); err != nil {
 				fmt.Println("❌", err)
 				continue
@@ -159,7 +167,7 @@ func startShell() {
 			}
 			continue
 
-		case "createdb":
+		case "createdb", "CREATEDB":
 			if err := auth.RequireRole("supermaung"); err != nil {
 				fmt.Println("❌", err)
 				continue

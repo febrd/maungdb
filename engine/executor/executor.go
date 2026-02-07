@@ -20,6 +20,8 @@ import (
 	"github.com/febrd/maungdb/engine/view"
 	"github.com/febrd/maungdb/engine/trigger"
 
+	"github.com/febrd/maungdb/engine/replication"
+    "github.com/febrd/maungdb/engine/fts"
 	
 
 
@@ -50,32 +52,50 @@ func Execute(cmd *parser.Command) (*ExecutionResult, error) {
 }
 
 func executeInternal(cmd *parser.Command) (*ExecutionResult, error) {
+	isWriteOp := (cmd.Type == parser.CmdInsert || cmd.Type == parser.CmdUpdate || cmd.Type == parser.CmdDelete)
+	if isWriteOp {
+		if err := replication.GlobalReplication.CanWrite(); err != nil {
+			return nil, err
+		}
+	}
 
-    switch cmd.Type {
+	switch cmd.Type {
 
 	case parser.CmdTransaction:
 		return execTransaction(cmd)
-    case parser.CmdCreate:
-        return execCreate(cmd)
-    case parser.CmdInsert:
-        return execInsert(cmd)
-    case parser.CmdSelect:
-        return execSelect(cmd)
-    case parser.CmdUpdate:
-        return execUpdate(cmd)
-    case parser.CmdDelete:
-        return execDelete(cmd) 
-    case parser.CmdShowDB:
-        return execShowDB()
-    case parser.CmdCreateView:
-        return execCreateView(cmd)
+	case parser.CmdCreate:
+		return execCreate(cmd)
+	case parser.CmdInsert:
+		return execInsert(cmd)
+	case parser.CmdSelect:
+		return execSelect(cmd)
+	case parser.CmdUpdate:
+		return execUpdate(cmd)
+	case parser.CmdDelete:
+		return execDelete(cmd)
+	case parser.CmdShowDB:
+		return execShowDB()
+	case parser.CmdCreateView:
+		return execCreateView(cmd)
 	case parser.CmdCreateTrigger:
 		return execCreateTrigger(cmd)
-    case parser.CmdIndex:
-        return execIndex(cmd)
-    }
+	case parser.CmdIndex:
+		return execIndex(cmd)
 
-    return nil, fmt.Errorf("paréntah teu dikenal: %s", cmd.Type)
+	// [FIX 1] Case-case ini sekarang ada DI DALAM block switch
+	case "JADI_INDUNG":
+		replication.GlobalReplication.SetMaster()
+		return &ExecutionResult{Message: "👑 Mode Berubah: INDUNG (Master). Tiasa nulis data."}, nil
+	case "JADI_ANAK":
+		replication.GlobalReplication.SetSlave(cmd.Arg1)
+		return &ExecutionResult{Message: fmt.Sprintf("👶 Mode Berubah: ANAK (Slave). Ngintil ka %s.", cmd.Arg1)}, nil
+	case "CREATE_FTS":
+		return execCreateFTS(cmd)
+	case "KOREHAN":
+		return execFTS(cmd)
+	}
+
+	return nil, fmt.Errorf("paréntah teu dikenal: %s", cmd.Type)
 }
 
 func runTriggers(dbName, table, event string) {
@@ -102,6 +122,62 @@ func runTriggers(dbName, table, event string) {
     }
 }
 
+
+func execCreateFTS(cmd *parser.Command) (*ExecutionResult, error) {
+	user, _ := auth.CurrentUser()
+	s, err := schema.Load(user.Database, cmd.Table)
+	if err != nil {
+		return nil, err
+	}
+	
+	err = fts.GlobalFTS.BuildIndex(cmd.Table, cmd.Column, s.GetFieldNames())
+	if err != nil {
+		return nil, fmt.Errorf("gagal nyieun indeks teks: %v", err)
+	}
+
+	return &ExecutionResult{Message: fmt.Sprintf("📚 Indeks Teks (Korehan) parantos didamel kanggo %s.%s", cmd.Table, cmd.Column)}, nil
+}
+
+func execFTS(cmd *parser.Command) (*ExecutionResult, error) {
+	rowIDs, err := fts.GlobalFTS.Search(cmd.Table, cmd.Column, cmd.Arg1)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(rowIDs) == 0 {
+		return &ExecutionResult{Message: "Teu aya hasil nu kapendak."}, nil
+	}
+
+	rawRows, err := storage.ReadAll(cmd.Table)
+	if err != nil {
+		return nil, err
+	}
+
+	var results [][]string
+	
+	idMap := make(map[string]bool)
+	for _, id := range rowIDs {
+		idMap[id] = true
+	}
+
+	count := 0
+	for _, raw := range rawRows {
+		if raw == "" {
+			continue
+		}
+		parts := strings.Split(raw, "|")
+		
+		if idMap[parts[0]] {
+			results = append(results, parts)
+			count++
+		}
+	}
+
+	return &ExecutionResult{
+		Message: fmt.Sprintf("%d hasil kapendak pikeun kata kunci '%s'", count, cmd.Arg1),
+		Rows:    results,
+	}, nil
+}
 
 func execCreateTrigger(cmd *parser.Command) (*ExecutionResult, error) {
     user, _ := auth.CurrentUser()

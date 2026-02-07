@@ -42,6 +42,8 @@ type Command struct {
 
 	ViewQuery string
 	TriggerDef TriggerDefinition
+
+	Column string
 }
 
 type Condition struct {

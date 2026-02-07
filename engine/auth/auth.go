@@ -58,7 +58,7 @@ func Login(username, password string) error {
 		}
 	}
 
-	return errors.New("login gagal")
+	return errors.New("Username/Password Salah")
 }
 
 func Logout() error {
