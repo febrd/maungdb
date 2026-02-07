@@ -33,6 +33,9 @@ type Command struct {
 	Offset    int  
 	
 	Arg1	string
+	
+    GroupBy   string      
+    Having    []Condition 
 }
 
 type Condition struct {

@@ -317,6 +317,42 @@
                 <div class="code-pill" style="cursor: pointer; font-size: 0.75rem; border-color:#f87171; color:#991b1b; background:#fef2f2;" onclick="copyToQuery('SIMPEN siswa 103|NULL|1')">SIMPEN siswa 103|NULL|1</div>
               </div>
 
+              <h5 style="margin:10px 0 5px 0; color:#d97706; font-size:0.85rem;">⚡ Indexing & Transaksi</h5>
+              <div class="syntax-item"><span class="code-pill">TANDAIN &lt;tbl&gt; DINA &lt;col&gt;</span><div style="font-size: 0.85rem; color: var(--text-muted);">Create Index (Speed Up)</div></div>
+              <div class="syntax-item"><span class="code-pill">MIMITIAN ... JADIKEUN</span><div style="font-size: 0.85rem; color: var(--text-muted);">Transaction (Begin ... Commit)</div></div>
+
+              <h5 style="margin: 15px 0 10px 0; color: var(--primary); border-top: 1px dashed var(--border); padding-top: 10px;">
+                🧪 Test Case: Grouping Analysis
+              </h5>
+
+              <div class="syntax-item">
+                <div style="font-size: 0.75rem; font-weight: 600; color: var(--danger); margin-bottom: 4px;">0. Reset Data</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem; border:1px solid #fecaca; background:#fee2e2; color:#b91c1c;" onclick="copyToQuery('MICEUN TI sales')">MICEUN TI sales</div>
+              </div>
+
+              <div class="syntax-item">
+                <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">1. Setup Tabel Sales</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem; background-color: #fff7ed; color: #c2410c; border: 1px solid #fdba74;" onclick="copyToQuery('DAMEL sales id:INT:PK,produk:STRING,wilayah:STRING,omset:INT')">DAMEL sales id:INT:PK,produk:STRING,wilayah:STRING,omset:INT</div>
+              </div>
+
+              <div class="syntax-item">
+                <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">2. Isi Data Dummy</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem;" onclick="copyToQuery(this.innerText)">SIMPEN sales 1|Laptop|Bandung|15000000</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem; margin-top:2px;" onclick="copyToQuery(this.innerText)">SIMPEN sales 2|Mouse|Bandung|500000</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem; margin-top:2px;" onclick="copyToQuery(this.innerText)">SIMPEN sales 3|Laptop|Jakarta|20000000</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem; margin-top:2px;" onclick="copyToQuery(this.innerText)">SIMPEN sales 4|Keyboard|Jakarta|1000000</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem; margin-top:2px;" onclick="copyToQuery(this.innerText)">SIMPEN sales 5|Laptop|Surabaya|12000000</div>
+              </div>
+
+              <div class="syntax-item">
+                <div style="font-size: 0.75rem; font-weight: 600; color: var(--success); margin-bottom: 4px;">3. Analisa Grouping</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted);">Total Omset Per Wilayah:</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem;" onclick="copyToQuery('TINGALI wilayah, TOTAL(omset) TI sales KUMPULKEUN DUMASAR wilayah')">TINGALI wilayah, TOTAL(omset) TI sales KUMPULKEUN DUMASAR wilayah</div>
+                
+                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top:5px;">Rata-rata Omset > 10 Juta (Having):</div>
+                <div class="code-pill" style="cursor: pointer; font-size: 0.75rem;" onclick="copyToQuery('TINGALI produk, RATA(omset) TI sales KUMPULKEUN DUMASAR produk MUN SYARATNA RATA(omset) > 10000000')">TINGALI produk, RATA(omset) TI sales KUMPULKEUN DUMASAR produk MUN SYARATNA RATA(omset) > 10000000</div>
+              </div>
+              
             </div>
             
           </div>

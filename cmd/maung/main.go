@@ -18,19 +18,9 @@ import (
 
 func main() {
     _ = godotenv.Load()
-
-    // --- INISIALISASI TRANSACTION MANAGER (PENTING) ---
-    // Pastikan path wal.log sesuai dengan konfigurasi storage
-    // Kita taruh di folder sistem agar rapi
     walPath := "maung_data/wal.log"
-    
-    // Kita Init Storage dulu (membuat folder maung_data jika belum ada)
-    // Supaya walPath valid
     _ = storage.Init() 
-    
-    // Baru Init Manager
     transaction.InitManager(walPath)
-    // ---------------------------------------------------
 
     if len(os.Args) < 2 {
         help()

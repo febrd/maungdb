@@ -243,244 +243,230 @@ func execInsert(cmd *parser.Command) (*ExecutionResult, error) {
 
 
 func execSelect(cmd *parser.Command) (*ExecutionResult, error) {
-	user, _ := auth.CurrentUser()
-	sMain, err := schema.Load(user.Database, cmd.Table)
-	if err != nil {
-		return nil, fmt.Errorf("tabel '%s' teu kapanggih: %v", cmd.Table, err)
-	}
+    user, _ := auth.CurrentUser()
 
-	if !sMain.Can(user.Role, "read") {
-		return nil, errors.New("akses ditolak: anjeun teu boga hak maca tabel ieu")
-	}
+    sMain, err := schema.Load(user.Database, cmd.Table)
+    if err != nil {
+        return nil, fmt.Errorf("tabel '%s' teu kapanggih: %v", cmd.Table, err)
+    }
+    if !sMain.Can(user.Role, "read") {
+        return nil, errors.New("akses ditolak: anjeun teu boga hak maca tabel ieu")
+    }
 
-	mainRaw, err := storage.ReadAll(cmd.Table)
-	if err != nil {
-		return nil, err
-	}
+    mainRaw, err := storage.ReadAll(cmd.Table)
+    if err != nil { return nil, err }
 
+    var indexedPKs map[string]bool = nil 
+    if len(cmd.Where) == 1 && cmd.Where[0].Operator == "=" {
+        cond := cmd.Where[0]
+        pks, err := indexing.GlobalIndexManager.Lookup(cmd.Table, cond.Field, cond.Value)
+        if err == nil {
+            indexedPKs = make(map[string]bool)
+            for _, pk := range pks { indexedPKs[pk] = true }
+             fmt.Printf("⚡ [OPTIMIZER] Index Scan on table '%s'\n", cmd.Table)
+        }
+    }
 
-	var indexedPKs map[string]bool = nil 
-	
-	if len(cmd.Where) == 1 && cmd.Where[0].Operator == "=" {
-		cond := cmd.Where[0]
-		
-		pks, err := indexing.GlobalIndexManager.Lookup(cmd.Table, cond.Field, cond.Value)
-		if err == nil {
-			indexedPKs = make(map[string]bool)
-			for _, pk := range pks {
-				indexedPKs[pk] = true
-			}
-			fmt.Printf("⚡ [OPTIMIZER] Index Scan on table '%s', column '%s'\n", cmd.Table, cond.Field)
-		}
-	}
+    var currentHeader []string
+    mainCols := sMain.GetFieldNames()
+    for _, col := range mainCols {
+        currentHeader = append(currentHeader, cmd.Table+"."+col)
+    }
 
-	var currentHeader []string
-	mainCols := sMain.GetFieldNames()
-	for _, col := range mainCols {
-		currentHeader = append(currentHeader, cmd.Table+"."+col)
-	}
+    var currentRows [][]string
+    for _, row := range mainRaw {
+        if strings.TrimSpace(row) == "" { continue }
+        parts := strings.Split(row, "|")
+        
+        if indexedPKs != nil {
+            if len(parts) > 0 {
+                if !indexedPKs[parts[0]] { continue }
+            }
+        }
+        currentRows = append(currentRows, parts)
+    }
 
-	var currentRows [][]string
-	
-	for _, row := range mainRaw {
-		if strings.TrimSpace(row) == "" { continue }
-		parts := strings.Split(row, "|")
-		
-		if indexedPKs != nil {
-			if len(parts) > 0 {
-				pk := parts[0] 
-				if !indexedPKs[pk] {
-					continue
-				}
-			}
-		}
+    if len(currentRows) == 0 && len(cmd.Joins) == 0 && !isAggregateCheck(cmd.Fields) {
+        return &ExecutionResult{Columns: sMain.GetFieldNames(), Rows: [][]string{}, Message: "Data kosong"}, nil
+    }
 
-		currentRows = append(currentRows, parts)
-	}
+    for _, join := range cmd.Joins {
+        targetSchema, err := schema.Load(user.Database, join.Table)
+        if err != nil { return nil, fmt.Errorf("tabel join '%s' teu kapanggih", join.Table) }
 
-	if len(currentRows) == 0 && len(cmd.Joins) == 0 && !isAggregateCheck(cmd.Fields) {
-		return &ExecutionResult{Columns: sMain.GetFieldNames(), Rows: [][]string{}, Message: "Data kosong"}, nil
-	}
+        targetRaw, err := storage.ReadAll(join.Table)
+        if err != nil { return nil, err }
 
-	for _, join := range cmd.Joins {
-		targetSchema, err := schema.Load(user.Database, join.Table)
-		if err != nil { return nil, fmt.Errorf("tabel join '%s' teu kapanggih", join.Table) }
+        var targetHeaderFull []string
+        targetCols := targetSchema.GetFieldNames()
+        for _, h := range targetCols {
+            targetHeaderFull = append(targetHeaderFull, join.Table+"."+h)
+        }
 
-		targetRaw, err := storage.ReadAll(join.Table)
-		if err != nil { return nil, err }
+        targetRows := [][]string{}
+        for _, r := range targetRaw {
+            if strings.TrimSpace(r) != "" { targetRows = append(targetRows, strings.Split(r, "|")) }
+        }
 
-		var targetHeaderFull []string
-		targetCols := targetSchema.GetFieldNames()
-		for _, h := range targetCols {
-			targetHeaderFull = append(targetHeaderFull, join.Table+"."+h)
-		}
+        var nextRows [][]string
+        matchedRightIndices := make(map[int]bool)
 
-		targetRows := [][]string{}
-		for _, r := range targetRaw {
-			if strings.TrimSpace(r) != "" { targetRows = append(targetRows, strings.Split(r, "|")) }
-		}
+        for _, leftRow := range currentRows {
+            matchedLeft := false
+            for tIdx, rightRow := range targetRows {
+                isMatch := evaluateJoinCondition(
+                    leftRow, rightRow,
+                    currentHeader, targetHeaderFull,
+                    cmd.Table, join.Table,
+                    join.Condition,
+                )
 
-		var nextRows [][]string
-		matchedRightIndices := make(map[int]bool)
+                if isMatch {
+                    merged := append([]string{}, leftRow...)
+                    merged = append(merged, rightRow...)
+                    nextRows = append(nextRows, merged)
+                    matchedLeft = true
+                    matchedRightIndices[tIdx] = true
+                }
+            }
+            if !matchedLeft && (join.Type == "LEFT" || join.Type == "KENCA") {
+                merged := append([]string{}, leftRow...)
+                for range targetHeaderFull { merged = append(merged, "NULL") }
+                nextRows = append(nextRows, merged)
+            }
+        }
 
-		for _, leftRow := range currentRows {
-			matchedLeft := false
+        if join.Type == "RIGHT" || join.Type == "KATUHU" {
+            for tIdx, rightRow := range targetRows {
+                if !matchedRightIndices[tIdx] {
+                    merged := []string{}
+                    for range currentHeader { merged = append(merged, "NULL") }
+                    merged = append(merged, rightRow...)
+                    nextRows = append(nextRows, merged)
+                }
+            }
+        }
+        currentRows = nextRows
+        currentHeader = append(currentHeader, targetHeaderFull...)
+    }
 
-			for tIdx, rightRow := range targetRows {
-				isMatch := evaluateJoinCondition(
-					leftRow, rightRow,
-					currentHeader, targetHeaderFull,
-					cmd.Table, join.Table,
-					join.Condition,
-				)
-
-				if isMatch {
-					merged := append([]string{}, leftRow...)
-					merged = append(merged, rightRow...)
-					nextRows = append(nextRows, merged)
-					
-					matchedLeft = true
-					matchedRightIndices[tIdx] = true
-				}
-			}
-
-			if !matchedLeft && (join.Type == "LEFT" || join.Type == "KENCA") {
-				merged := append([]string{}, leftRow...)
-				for range targetHeaderFull { merged = append(merged, "NULL") }
-				nextRows = append(nextRows, merged)
-			}
-		}
-
-		if join.Type == "RIGHT" || join.Type == "KATUHU" {
-			for tIdx, rightRow := range targetRows {
-				if !matchedRightIndices[tIdx] {
-					merged := []string{}
-					for range currentHeader { merged = append(merged, "NULL") }
-					merged = append(merged, rightRow...)
-					nextRows = append(nextRows, merged)
-				}
-			}
-		}
-
-		currentRows = nextRows
-		currentHeader = append(currentHeader, targetHeaderFull...)
-	}
-
-	
 	var filteredMaps []map[string]string
-	var filteredSlices [][]string
+    
+    for _, cols := range currentRows {
+        rowMap := make(map[string]string)
+        for i, val := range cols {
+            if i < len(currentHeader) {
+                fullKey := currentHeader[i]
+                rowMap[fullKey] = val
+                parts := strings.Split(fullKey, ".")
+                if len(parts) > 1 { rowMap[parts[1]] = val }
+            }
+        }
 
-	for _, cols := range currentRows {
-		rowMap := make(map[string]string)
-		for i, val := range cols {
-			if i < len(currentHeader) {
-				fullKey := currentHeader[i]
-				rowMap[fullKey] = val
-				parts := strings.Split(fullKey, ".")
-				if len(parts) > 1 { rowMap[parts[1]] = val }
-			}
-		}
+        matches := true
+        if len(cmd.Where) > 0 {
+            matches = evaluateMapCondition(rowMap, cmd.Where)
+        }
 
-		matches := true
-		if len(cmd.Where) > 0 {
-			matches = evaluateMapCondition(rowMap, cmd.Where)
-		}
+        if matches {
+            filteredMaps = append(filteredMaps, rowMap)
+        }
+    }
 
-		if matches {
-			filteredSlices = append(filteredSlices, cols)
-			filteredMaps = append(filteredMaps, rowMap)
-		}
-	}
+    selectedFields := cmd.Fields
+    if len(selectedFields) == 0 || selectedFields[0] == "*" {
+        selectedFields = currentHeader
+    }
 
-	selectedFields := cmd.Fields
-	if len(selectedFields) == 0 || selectedFields[0] == "*" {
-		selectedFields = currentHeader
-	}
+    var parsedCols []ParsedColumn
+    isAggregateQuery := false
+    for _, f := range selectedFields {
+        pc := ParseColumnSelection(f)
+        parsedCols = append(parsedCols, pc)
+        if pc.IsAggregate { isAggregateQuery = true }
+    }
 
-	isAggregateQuery := false
-	var parsedCols []ParsedColumn
-	for _, f := range selectedFields {
-		pc := ParseColumnSelection(f)
-		parsedCols = append(parsedCols, pc)
-		if pc.IsAggregate { isAggregateQuery = true }
-	}
+    var finalResult [][]string
+    var finalHeader []string
 
-	var finalResult [][]string
-	var finalHeader []string
+    for _, pc := range parsedCols {
+        displayText := pc.TargetCol
+        if pc.IsAggregate {
+            displayText = pc.OriginalText 
+        } else if parts := strings.Split(displayText, "."); len(parts) > 1 {
+            displayText = parts[1] 
+        }
+        finalHeader = append(finalHeader, displayText)
+    }
 
-	if isAggregateQuery {
-		var resultRow []string
-		for _, pc := range parsedCols {
-			finalHeader = append(finalHeader, pc.OriginalText)
-			val, _ := CalculateAggregate(filteredMaps, pc)
-			resultRow = append(resultRow, val)
-		}
-		finalResult = append(finalResult, resultRow)
 
-	} else {
-		if cmd.OrderBy != "" {
-			colIdx := indexOf(cmd.OrderBy, currentHeader)
-			if colIdx == -1 {
-				for i, h := range currentHeader {
-					if parts := strings.Split(h, "."); len(parts) > 1 && parts[1] == cmd.OrderBy {
-						colIdx = i; break
-					}
-				}
-			}
+    if cmd.GroupBy != "" {
+        groups := make(map[string][]map[string]string)
+        
+        for _, row := range filteredMaps {
+            groupVal, ok := row[cmd.GroupBy]
+            if !ok { 
+                 groupVal = row[cmd.Table+"."+cmd.GroupBy]
+            }
+            if groupVal == "" { groupVal = "NULL" }
+            
+            groups[groupVal] = append(groups[groupVal], row)
+        }
 
-			if colIdx != -1 {
-				sort.Slice(filteredSlices, func(i, j int) bool {
-					valA := filteredSlices[i][colIdx]
-					valB := filteredSlices[j][colIdx]
-					fA, errA := strconv.ParseFloat(valA, 64)
-					fB, errB := strconv.ParseFloat(valB, 64)
-
-					isLess := false
-					if errA == nil && errB == nil { isLess = fA < fB } else { isLess = valA < valB }
-					
-					if cmd.OrderDesc { return !isLess }
-					return isLess
-				})
-			}
-		}
-
-		totalRows := len(filteredSlices)
-		start, end := 0, totalRows
-		if cmd.Offset > 0 { start = cmd.Offset; if start > totalRows { start = totalRows } }
-		if cmd.Limit > 0 { end = start + cmd.Limit; if end > totalRows { end = totalRows } }
-		
-		slicedRows := filteredSlices[start:end]
-
-		for _, pc := range parsedCols {
-			displayText := pc.TargetCol
-			if parts := strings.Split(displayText, "."); len(parts) > 1 {
-				displayText = parts[1]
-			}
-			finalHeader = append(finalHeader, displayText)
-		}
-
-		for _, rowSlice := range slicedRows {
-			tempMap := make(map[string]string)
-			for i, val := range rowSlice {
-				if i < len(currentHeader) {
-					tempMap[currentHeader[i]] = val
-					if p := strings.Split(currentHeader[i], "."); len(p) > 1 { tempMap[p[1]] = val }
-				}
+        for _, groupRows := range groups {
+            var resultRow []string
+            
+            calculatedValues := make(map[string]string)
+            if len(groupRows) > 0 {
+                for k, v := range groupRows[0] { calculatedValues[k] = v }
             }
 
+            for _, pc := range parsedCols {
+                val := ""
+                if pc.IsAggregate {
+                    val, _ = CalculateAggregate(groupRows, pc)
+                    calculatedValues[pc.OriginalText] = val
+                } else {
+                    if len(groupRows) > 0 {
+                        v, ok := groupRows[0][pc.TargetCol]
+                        if !ok { v = groupRows[0][cmd.Table+"."+pc.TargetCol] }
+                        val = v
+                    }
+                }
+                resultRow = append(resultRow, val)
+            }
+
+            matchesHaving := true
+            if len(cmd.Having) > 0 {
+                matchesHaving = evaluateMapCondition(calculatedValues, cmd.Having)
+            }
+
+            if matchesHaving {
+                finalResult = append(finalResult, resultRow)
+            }
+        }
+
+    } else if isAggregateQuery {
+        var resultRow []string       
+
+        for _, pc := range parsedCols {
+            val, _ := CalculateAggregate(filteredMaps, pc)
+            resultRow = append(resultRow, val)
+        }
+        finalResult = append(finalResult, resultRow)
+
+    } else {
+        for _, rowMap := range filteredMaps {
             var rowData []string
             for _, pc := range parsedCols {
-                if val, ok := tempMap[pc.TargetCol]; ok {
+                if val, ok := rowMap[pc.TargetCol]; ok {
                     rowData = append(rowData, val)
                 } else {
                     found := false
-                    if !strings.Contains(pc.TargetCol, ".") {
-                        for k, v := range tempMap {
-                            if strings.HasSuffix(k, "."+pc.TargetCol) {
-                                rowData = append(rowData, v)
-                                found = true
-                                break
-                            }
+                    for k, v := range rowMap {
+                        if strings.HasSuffix(k, "."+pc.TargetCol) {
+                            rowData = append(rowData, v)
+                            found = true; break
                         }
                     }
                     if !found { rowData = append(rowData, "NULL") }
@@ -490,19 +476,43 @@ func execSelect(cmd *parser.Command) (*ExecutionResult, error) {
         }
     }
 
+    if cmd.OrderBy != "" && len(finalResult) > 0 {
+        colIdx := indexOf(cmd.OrderBy, finalHeader)
+        if colIdx == -1 {
+            for i, h := range finalHeader {
+                if h == cmd.OrderBy { colIdx = i; break }
+            }
+        }
+
+        if colIdx != -1 {
+            sort.Slice(finalResult, func(i, j int) bool {
+                valA := finalResult[i][colIdx]
+                valB := finalResult[j][colIdx]
+                fA, errA := strconv.ParseFloat(valA, 64)
+                fB, errB := strconv.ParseFloat(valB, 64)
+
+                isLess := false
+                if errA == nil && errB == nil { isLess = fA < fB } else { isLess = valA < valB }
+                
+                if cmd.OrderDesc { return !isLess }
+                return isLess
+            })
+        }
+    }
+
+    totalRows := len(finalResult)
+    start, end := 0, totalRows
+    if cmd.Offset > 0 { start = cmd.Offset; if start > totalRows { start = totalRows } }
+    if cmd.Limit > 0 { end = start + cmd.Limit; if end > totalRows { end = totalRows } }
+    
     return &ExecutionResult{
         Columns: finalHeader,
-        Rows:    finalResult,
-        Message: fmt.Sprintf("%d baris kapendak", len(finalResult)),
+        Rows:    finalResult[start:end],
+        Message: fmt.Sprintf("%d baris kapendak", len(finalResult[start:end])),
     }, nil
 }
 
-func isAggregateCheck(fields []string) bool {
-	for _, f := range fields {
-		if strings.Contains(f, "(") && strings.Contains(f, ")") { return true }
-	}
-	return false
-}
+
 func cleanHeaders(headers []string) []string {
 	seen := map[string]bool{}
 	out := []string{}
@@ -520,29 +530,6 @@ func cleanHeaders(headers []string) []string {
 	return out
 }
 
-func evaluateJoinCondition(rowA, rowB []string, headA, headB []string, tblA, tblB string, cond parser.Condition) bool {
-	valA := ""
-	fieldA := cond.Field
-	idxA := indexOf(fieldA, headA)
-	if idxA == -1 {
-		idxA = indexOf(tblA+"."+fieldA, headA)
-	}
-	if idxA != -1 { valA = rowA[idxA] }
-	valB := ""
-	fieldB := cond.Value
-	idxB := indexOf(fieldB, headB)
-	if idxB == -1 {
-		idxB = indexOf(tblB+"."+fieldB, headB)
-	}
-	
-	if idxB != -1 { 
-		valB = rowB[idxB] 
-	} else {
-		valB = cond.Value
-	}
-
-	return valA == valB
-}
 
 func evaluateConditions(cols []string, schemaCols []schema.Column, conditions []parser.Condition) bool {
 	if len(conditions) == 0 { return true }
@@ -565,29 +552,6 @@ func evaluateConditions(cols []string, schemaCols []schema.Column, conditions []
 	return result
 }
 
-func evaluateMapCondition(rowMap map[string]string, conditions []parser.Condition) bool {
-	if len(conditions) == 0 { return true }
-
-	check := func(c parser.Condition) bool {
-		valData, ok := rowMap[c.Field]
-		if !ok { return false } 
-		return match(valData, c.Operator, c.Value, "STRING") 
-	}
-
-	result := check(conditions[0])
-	for i := 0; i < len(conditions)-1; i++ {
-		cond := conditions[i]
-		if cond.LogicOp == "" { break }
-		nextRes := check(conditions[i+1])
-		op := strings.ToUpper(cond.LogicOp)
-		if op == "SARENG" || op == "AND" {
-			result = result && nextRes
-		} else if op == "ATAWA" || op == "OR" {
-			result = result || nextRes
-		}
-	}
-	return result
-}
 
 func execUpdate(cmd *parser.Command) (*ExecutionResult, error) {
 	user, _ := auth.CurrentUser()
@@ -731,13 +695,127 @@ func execDelete(cmd *parser.Command) (*ExecutionResult, error) {
 	return &ExecutionResult{Message: fmt.Sprintf("✅ %d data geus dipiceun", deletedCount)}, nil
 }
 
+func isAggregateCheck(fields []string) bool {
+    for _, f := range fields {
+        if strings.Contains(f, "(") && strings.Contains(f, ")") { return true }
+    }
+    return false
+}
+
 func indexOf(field string, fields []string) int {
-	for i, f := range fields {
-		if f == field {
-			return i
-		}
-	}
-	return -1
+    for i, f := range fields {
+        if f == field {
+            return i
+        }
+    }
+    return -1
+}
+
+
+func evaluateMapCondition(rowMap map[string]string, conditions []parser.Condition) bool {
+    if len(conditions) == 0 { return true }
+
+    check := func(c parser.Condition) bool {
+        valData, ok := rowMap[c.Field]
+        
+        if !ok { 
+            found := false
+            suffix := "." + c.Field
+            for k, v := range rowMap {
+                if strings.HasSuffix(k, suffix) {
+                    valData = v
+                    found = true
+                    break
+                }
+            }
+            if !found { return false } 
+        } 
+        
+        return match(valData, c.Operator, c.Value, "") 
+    }
+
+    result := check(conditions[0])
+    for i := 0; i < len(conditions)-1; i++ {
+        cond := conditions[i]
+        if cond.LogicOp == "" { break }
+        nextRes := check(conditions[i+1])
+        op := strings.ToUpper(cond.LogicOp)
+        if op == "SARENG" || op == "AND" {
+            result = result && nextRes
+        } else if op == "ATAWA" || op == "OR" {
+            result = result || nextRes
+        }
+    }
+    return result
+}
+
+func evaluateJoinCondition(rowA, rowB []string, headA, headB []string, tblA, tblB string, cond parser.Condition) bool {
+    valA := ""
+    fieldA := cond.Field
+    idxA := indexOf(fieldA, headA)
+    if idxA == -1 {
+        idxA = indexOf(tblA+"."+fieldA, headA)
+    }
+    if idxA != -1 { valA = rowA[idxA] }
+
+    valB := ""
+    fieldB := cond.Value
+    idxB := indexOf(fieldB, headB)
+    if idxB == -1 {
+        idxB = indexOf(tblB+"."+fieldB, headB)
+    }
+    
+    if idxB != -1 { 
+        valB = rowB[idxB] 
+    } else {
+        valB = cond.Value
+    }
+
+    return match(valA, cond.Operator, valB, "")
+}
+
+
+func match(a, op, b, colType string) bool {
+    op = strings.TrimSpace(op)
+
+    if strings.ToUpper(op) == "JIGA" || strings.ToUpper(op) == "LIKE" {
+        return strings.Contains(strings.ToLower(a), strings.ToLower(b))
+    }
+
+    isNumeric := false
+    var fA, fB float64
+    var errA, errB error
+
+    if colType == "" || colType == "INT" || colType == "FLOAT" {
+        fA, errA = strconv.ParseFloat(a, 64)
+        fB, errB = strconv.ParseFloat(b, 64)
+        if errA == nil && errB == nil {
+            isNumeric = true
+        }
+    }
+
+    if isNumeric {
+        switch op {
+        case "=": return fA == fB
+        case "!=": return fA != fB
+        case ">": return fA > fB
+        case "<": return fA < fB
+        case ">=": return fA >= fB
+        case "<=": return fA <= fB
+        }
+    }
+
+
+    switch op {
+    case "=": return a == b
+    case "!=": return a != b
+    case ">": return a > b
+    case "<": return a < b
+    case ">=": return a >= b
+    case "<=": return a <= b
+    }
+
+    return false
 }
 
 func evaluateOne(row []string, cols []schema.Column, cond parser.Condition) bool {
@@ -757,66 +835,4 @@ func evaluateOne(row []string, cols []schema.Column, cond parser.Condition) bool
 	}
 
 	return match(row[idx], cond.Operator, cond.Value, colType)
-}
-
-func match(a, op, b, colType string) bool {
-	if strings.ToUpper(op) == "JIGA" {
-		return strings.Contains(strings.ToLower(a), strings.ToLower(b))
-	}
-
-	switch colType {
-	case "INT":
-		numA, errA := strconv.Atoi(a)
-		numB, errB := strconv.Atoi(b)
-
-		if errA != nil || errB != nil {
-			return false
-		}
-
-		switch op {
-		case "=": return numA == numB
-		case "!=": return numA != numB
-		case ">": return numA > numB
-		case "<": return numA < numB
-		case ">=": return numA >= numB
-		case "<=": return numA <= numB
-		}
-
-	case "FLOAT":
-		fA, errA := strconv.ParseFloat(a, 64)
-		fB, errB := strconv.ParseFloat(b, 64)
-
-		if errA != nil || errB != nil {
-			return false
-		}
-
-		switch op {
-		case "=": return fA == fB
-		case "!=": return fA != fB
-		case ">": return fA > fB
-		case "<": return fA < fB
-		case ">=": return fA >= fB
-		case "<=": return fA <= fB
-		}
-
-	case "BOOL":
-		if op == "=" { return a == b }
-		if op == "!=" { return a != b }
-		return false
-
-	case "STRING", "TEXT", "CHAR", "ENUM", "DATE":
-		switch op {
-		case "=": return a == b
-		case "!=": return a != b
-		case ">": return a > b
-		case "<": return a < b
-		case ">=": return a >= b
-		case "<=": return a <= b
-		}
-
-	default:
-		return false
-	}
-
-	return false
 }

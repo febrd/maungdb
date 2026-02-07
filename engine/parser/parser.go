@@ -123,9 +123,11 @@ func parseInsert(tokens []string) (*Command, error) {
 
 func parseSelect(tokens []string) (*Command, error) {
 	cmd := &Command{
-		Type:  CmdSelect,
-		Limit: -1, 
-		Joins: []JoinClause{},
+		Type:   CmdSelect,
+		Limit:  -1,
+		Joins:  []JoinClause{},
+		Where:  []Condition{},
+		Having: []Condition{}, 
 	}
 
 	tiIndex := -1
@@ -136,12 +138,12 @@ func parseSelect(tokens []string) (*Command, error) {
 		}
 	}
 
-	idx := 0 
+	idx := 0
 	if tiIndex != -1 {
 		if tiIndex < 1 {
 			return nil, errors.New("kolom teu disebutkeun samemeh TI")
 		}
-		
+
 		colsPart := strings.Join(tokens[1:tiIndex], " ")
 		rawFields := strings.Split(colsPart, ",")
 		for _, f := range rawFields {
@@ -152,29 +154,27 @@ func parseSelect(tokens []string) (*Command, error) {
 			return nil, errors.New("tabel teu disebutkeun sanggeus TI")
 		}
 		cmd.Table = tokens[tiIndex+1]
-		
-		idx = tiIndex + 2 
+
+		idx = tiIndex + 2
 
 	} else {
 		if len(tokens) < 2 {
 			return nil, errors.New("format TINGALI salah, minimal: TINGALI <tabel>")
 		}
 		cmd.Table = tokens[1]
-		cmd.Fields = []string{"*"} 
+		cmd.Fields = []string{"*"}
 		idx = 2
 	}
 
 	for idx < len(tokens) {
 		token := strings.ToUpper(tokens[idx])
 
-		
 		if isJoinKeyword(token) {
-			
 			joinType := "INNER"
-			
+
 			if token == "LEFT" || token == "KENCA" {
 				joinType = "LEFT"
-				idx++ 
+				idx++
 			} else if token == "RIGHT" || token == "KATUHU" {
 				joinType = "RIGHT"
 				idx++
@@ -182,17 +182,17 @@ func parseSelect(tokens []string) (*Command, error) {
 				joinType = "INNER"
 				idx++
 			} else if token == "FULL" || token == "PINUH" {
-				joinType = "FULL" 
+				joinType = "FULL"
 				idx++
 			}
 
 			if idx >= len(tokens) {
 				return nil, errors.New("paréntah JOIN teu lengkep")
 			}
-			
+
 			currToken := strings.ToUpper(tokens[idx])
-			if currToken == "GABUNG" || currToken == "JOIN" || currToken == "HIJIKEUN"  {
-				idx++ 
+			if currToken == "GABUNG" || currToken == "JOIN" || currToken == "HIJIKEUN" {
+				idx++
 			} else if token == "GABUNG" || token == "JOIN" || currToken == "HIJIKEUN" {
 				idx++
 			} else {
@@ -229,63 +229,118 @@ func parseSelect(tokens []string) (*Command, error) {
 				Table:     joinTable,
 				Condition: joinCond,
 			})
-			
-			continue 
+			continue
 		}
 
 		switch token {
 		case "DIMANA", "WHERE":
-			endIdx := len(tokens)
-			for i := idx + 1; i < len(tokens); i++ {
-				kw := strings.ToUpper(tokens[i])
-				if kw == "RUNTUYKEUN" || kw == "ORDER" || kw == "SAKADAR" || kw == "LIMIT" || kw == "LIWATAN" || kw == "OFFSET" || isJoinKeyword(kw) {
-					endIdx = i
-					break
-				}
-			}
+			endIdx := findNextKeyword(tokens, idx+1)
+			
 			condTokens := tokens[idx+1 : endIdx]
 			conds, err := parseConditionsList(condTokens)
-			if err != nil { return nil, err }
+			if err != nil {
+				return nil, err
+			}
 			cmd.Where = conds
 			idx = endIdx
 
-		case "RUNTUYKEUN", "ORDER":
-			if idx+1 >= len(tokens) { return nil, errors.New("RUNTUYKEUN butuh ngaran kolom") }
+		case "KUMPULKEUN", "GROUP":
 			targetIdx := idx + 1
-			if strings.ToUpper(tokens[targetIdx]) == "BY" { targetIdx++ }
-			if targetIdx >= len(tokens) { return nil, errors.New("RUNTUYKEUN butuh ngaran kolom") }
-			
+			if targetIdx < len(tokens) {
+				next := strings.ToUpper(tokens[targetIdx])
+				if next == "DUMASAR" || next == "BY" {
+					targetIdx++
+				}
+			}
+
+			if targetIdx >= len(tokens) {
+				return nil, errors.New("KUMPULKEUN/GROUP butuh ngaran kolom")
+			}
+
+			cmd.GroupBy = tokens[targetIdx]
+			idx = targetIdx + 1
+
+		case "MUN", "HAVING":
+			if idx+1 < len(tokens) && strings.ToUpper(tokens[idx+1]) == "SYARATNA" {
+				idx++
+			}
+
+			endIdx := findNextKeyword(tokens, idx+1)
+			condTokens := tokens[idx+1 : endIdx]
+			conds, err := parseConditionsList(condTokens)
+			if err != nil {
+				return nil, err
+			}
+			cmd.Having = conds
+			idx = endIdx
+
+		case "RUNTUYKEUN", "ORDER":
+			targetIdx := idx + 1
+			if targetIdx < len(tokens) && strings.ToUpper(tokens[targetIdx]) == "BY" {
+				targetIdx++
+			}
+			if targetIdx >= len(tokens) {
+				return nil, errors.New("RUNTUYKEUN butuh ngaran kolom")
+			}
+
 			cmd.OrderBy = tokens[targetIdx]
 			idx = targetIdx + 1
+			
 			if idx < len(tokens) {
 				mode := strings.ToUpper(tokens[idx])
-				if mode == "TI_LUHUR" || mode == "TURUN" || mode == "DESC" { 
-					cmd.OrderDesc = true; idx++ 
+				if mode == "TI_LUHUR" || mode == "TURUN" || mode == "DESC" {
+					cmd.OrderDesc = true
+					idx++
 				} else if mode == "TI_HANDAP" || mode == "NAEK" || mode == "ASC" {
-					cmd.OrderDesc = false; idx++
+					cmd.OrderDesc = false
+					idx++
 				}
 			}
 
 		case "SAKADAR", "LIMIT":
-			if idx+1 >= len(tokens) { return nil, errors.New("SAKADAR butuh angka") }
+			if idx+1 >= len(tokens) {
+				return nil, errors.New("SAKADAR butuh angka")
+			}
 			limit, err := strconv.Atoi(tokens[idx+1])
-			if err != nil { return nil, errors.New("SAKADAR kudu angka") }
+			if err != nil {
+				return nil, errors.New("SAKADAR kudu angka")
+			}
 			cmd.Limit = limit
 			idx += 2
 
 		case "LIWATAN", "OFFSET":
-			if idx+1 >= len(tokens) { return nil, errors.New("LIWATAN butuh angka") }
+			if idx+1 >= len(tokens) {
+				return nil, errors.New("LIWATAN butuh angka")
+			}
 			offset, err := strconv.Atoi(tokens[idx+1])
-			if err != nil { return nil, errors.New("LIWATAN kudu angka") }
+			if err != nil {
+				return nil, errors.New("LIWATAN kudu angka")
+			}
 			cmd.Offset = offset
 			idx += 2
 
 		default:
-			idx++ 
+			idx++
 		}
 	}
 
 	return cmd, nil
+}
+
+func findNextKeyword(tokens []string, start int) int {
+    for i := start; i < len(tokens); i++ {
+        t := strings.ToUpper(tokens[i])
+        
+        if t == "RUNTUYKEUN" || t == "ORDER" || 
+           t == "SAKADAR" || t == "LIMIT" || 
+           t == "LIWATAN" || t == "OFFSET" || 
+           t == "KUMPULKEUN" || t == "GROUP" || 
+           t == "MUN" || t == "HAVING" ||     
+           isJoinKeyword(t) {
+            return i
+        }
+    }
+    return len(tokens)
 }
 
 func isJoinKeyword(t string) bool {
