@@ -27,41 +27,47 @@ func startShell() {
 		if user != nil && user.Database != "" {
 			prompt = fmt.Sprintf("maung[%s]> ", user.Database)
 		}
-
+	
 		fmt.Print(prompt)
-
+	
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Println()
 			return
 		}
-
+	
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-
+	
+		// Split input
 		args := strings.Fields(line)
-		cmdName := args[0]
-
+		if len(args) == 0 {
+			continue
+		}
+	
+		// 🔑 INI KUNCINYA: hanya command name yang di-lowercase
+		cmdName := strings.ToLower(args[0])
+	
 		switch cmdName {
-
+	
 		case "exit", "quit":
 			return
-
+	
 		case "help":
 			help()
 			continue
-
+	
 		case "init":
 			if err := storage.Init(); err != nil {
 				fmt.Println("❌ gagal init:", err)
 				continue
 			}
-			fmt.Println("✅ MaungDB siap Di angge")
+			fmt.Println("✅ MaungDB siap di angge")
 			fmt.Println("Default user: maung / maung (supermaung)")
 			continue
-
+	
 		case "login":
 			if len(args) < 3 {
 				fmt.Println("❌ format: login <user> <pass>")
@@ -74,24 +80,24 @@ func startShell() {
 			u, _ := auth.CurrentUser()
 			fmt.Printf("✅ login salaku %s (%s)\n", u.Username, u.Role)
 			continue
-
+	
 		case "logout":
 			if err := auth.Logout(); err != nil {
 				fmt.Println("❌", err)
 				continue
 			}
-			fmt.Println("✅ Logoutna Bersih")
+			fmt.Println("✅ Logoutna bersih")
 			continue
-
+	
 		case "whoami":
 			whoami()
 			continue
-
-
+	
 		case "server":
 			port := "7070"
 			enableGUI := true
-			serverArgs := os.Args[2:]
+			serverArgs := args[1:]
+	
 			for _, arg := range serverArgs {
 				if arg == "--no-gui" {
 					enableGUI = false
@@ -99,11 +105,11 @@ func startShell() {
 					port = arg
 				}
 			}
-
+	
 			startServer(port, enableGUI)
 			continue
-
-		case "createuser", "CREATEUSER":
+	
+		case "createuser":
 			if err := auth.RequireRole("supermaung"); err != nil {
 				fmt.Println("❌", err)
 				continue
@@ -118,7 +124,7 @@ func startShell() {
 			}
 			fmt.Println("✅ User dijieun:", args[1])
 			continue
-
+	
 		case "setdb":
 			if err := auth.RequireRole("supermaung"); err != nil {
 				fmt.Println("❌", err)
@@ -133,9 +139,9 @@ func startShell() {
 				fmt.Println("❌", err)
 				continue
 			}
-			fmt.Println("✅ Databasena di assignkeun ka user:", args[1])
+			fmt.Println("✅ Databasena di-assign ka user:", args[1])
 			continue
-
+	
 		case "passwd":
 			if err := auth.RequireRole("supermaung"); err != nil {
 				fmt.Println("❌", err)
@@ -151,7 +157,7 @@ func startShell() {
 			}
 			fmt.Println("✅ Password diganti pikeun user:", args[1])
 			continue
-
+	
 		case "listuser":
 			if err := auth.RequireRole("supermaung"); err != nil {
 				fmt.Println("❌", err)
@@ -166,8 +172,8 @@ func startShell() {
 				fmt.Println(u)
 			}
 			continue
-
-		case "createdb", "CREATEDB":
+	
+		case "createdb":
 			if err := auth.RequireRole("supermaung"); err != nil {
 				fmt.Println("❌", err)
 				continue
@@ -182,7 +188,7 @@ func startShell() {
 			}
 			fmt.Println("✅ Databasena dijieun:", args[1])
 			continue
-
+	
 		case "use", "angge", "anggo":
 			if len(args) < 2 {
 				fmt.Println("❌ format: use <database>")
@@ -194,44 +200,42 @@ func startShell() {
 			}
 			fmt.Println("✅ Ngangge database:", args[1])
 			continue
-
+	
 		case "schema":
-			// Access Control: admin
 			if err := auth.RequireRole("admin"); err != nil {
 				fmt.Println("❌", err)
 				continue
 			}
-			if len(args) < 4 || args[1] != "create" {
-				fmt.Println("❌ format: schema create <table> <col:type,col:type> --read=..")
-				fmt.Println("   tipe: INT, STRING")
+			if len(args) < 4 || strings.ToLower(args[1]) != "create" {
+				fmt.Println("❌ format: schema create <table> <col:type,col:type> --read=.. --write=..")
 				continue
 			}
-
+	
 			user, err := auth.CurrentUser()
 			if err != nil || user.Database == "" {
 				fmt.Println("❌ can use database heula")
 				continue
 			}
-
+	
 			table := args[2]
 			fieldsRaw := strings.Split(args[3], ",")
 			var columns []schema.Column
+	
 			for _, f := range fieldsRaw {
 				parts := strings.Split(f, ":")
 				if len(parts) >= 2 {
-					col := schema.Column{
+					columns = append(columns, schema.Column{
 						Name: parts[0],
 						Type: strings.ToUpper(parts[1]),
-					}
-					columns = append(columns, col)
+					})
 				}
 			}
-
+	
 			perms := map[string][]string{
 				"read":  {"user", "admin", "supermaung"},
 				"write": {"admin", "supermaung"},
 			}
-
+	
 			for _, arg := range args {
 				if strings.HasPrefix(arg, "--read=") {
 					perms["read"] = strings.Split(strings.TrimPrefix(arg, "--read="), ",")
@@ -240,17 +244,16 @@ func startShell() {
 					perms["write"] = strings.Split(strings.TrimPrefix(arg, "--write="), ",")
 				}
 			}
-
+	
 			if err := schema.CreateComplex(user.Database, table, columns, perms); err != nil {
 				fmt.Println("❌", err)
 				continue
 			}
-			
+	
 			storage.InitTableFile(user.Database, table)
-
 			fmt.Println("✅ Schema dijieun pikeun table:", table)
 			continue
-
+	
 		case "simpen", "tingali", "damel", "omean", "miceun":
 			if err := auth.RequireRole("user"); err != nil {
 				fmt.Println("❌", err)
@@ -258,10 +261,13 @@ func startShell() {
 			}
 			processQuery(line)
 			continue
+	
+		default:
+			// Semua selain command → dianggap query MaungQL
+			processQuery(line)
 		}
-
-		processQuery(line)
 	}
+	
 }
 
 func processQuery(line string) {

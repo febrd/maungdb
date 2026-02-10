@@ -19,7 +19,7 @@ import (
 func main() {
     _ = godotenv.Load()
     walPath := "maung_data/wal.log"
-    _ = storage.Init() 
+    _ = storage.Init()
     transaction.InitManager(walPath)
 
     if len(os.Args) < 2 {
@@ -27,12 +27,15 @@ func main() {
         return
     }
 
-    if strings.Contains(os.Args[1], " ") {
+    // ⬇️ NORMALISASI COMMAND
+    cmd := strings.ToLower(os.Args[1])
+
+    if strings.Contains(cmd, " ") {
         runQueryFromString(os.Args[1])
         return
     }
 
-    switch os.Args[1] {
+    switch cmd {
 
     case "init":
         initDB()
@@ -88,6 +91,7 @@ func main() {
         port := "7070"
         enableGUI := true
         serverArgs := os.Args[2:]
+
         for _, arg := range serverArgs {
             if arg == "--no-gui" {
                 enableGUI = false
@@ -387,7 +391,7 @@ func initDB() {
 
 
 func help() {
-	fmt.Println("\n🐯  MAUNG DB v2.2.8 (Enterprise Edition) - CHEAT SHEET LENGKAP  🐯")
+	fmt.Println("\n🐯  MAUNG DB v2.2.9 (Enterprise Edition) - CHEAT SHEET LENGKAP  🐯")
 	fmt.Println("==================================================================")
 	fmt.Println("Catetan: Tanda '/' hartosna 'ATAWA' (Sinonim/Alias)")
 
