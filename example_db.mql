@@ -1,0 +1,151 @@
+-- =====================================================
+-- MaungDB v2.2.9
+-- Full Example Script (DDL, DML, DQL, View, Trigger)
+-- =====================================================
+
+-- =====================
+-- DATABASE SETUP
+-- =====================
+
+createdb maung_company;
+angge maung_company;
+
+
+-- =====================
+-- DDL: TABLE DEFINITIONS
+-- =====================
+
+-- Master table
+DAMEL divisi
+  id:INT:PK,
+  nama:STRING:UNIQUE;
+
+-- Employee table with FK
+DAMEL karyawan
+  id:INT:PK,
+  nama:STRING:NOT NULL,
+  id_div:INT:FK(divisi.id),
+  gaji:FLOAT,
+  aktif:BOOL;
+
+
+-- =====================
+-- DML: INSERT DATA
+-- =====================
+
+SIMPEN divisi 1|IT;
+SIMPEN divisi 2|HRD;
+
+SIMPEN karyawan 101|Farah|1|5000000|true;
+SIMPEN karyawan 102|Budi|2|4500000|true;
+SIMPEN karyawan 103|Ayu|1|7000000|true;
+
+
+-- =====================
+-- DQL: QUERY DATA
+-- =====================
+
+-- Select all
+TINGALI * TI karyawan;
+
+-- Filter
+TINGALI nama, gaji TI karyawan DIMANA gaji > 5000000;
+
+-- Join
+TINGALI karyawan.nama, divisi.nama
+TI karyawan
+GABUNG divisi
+DINA karyawan.id_div = divisi.id;
+
+
+-- =====================
+-- UPDATE & DELETE
+-- =====================
+
+-- Update salary
+OMEAN karyawan
+JANTEN gaji = 8000000
+DIMANA id = 101;
+-- Soft delete style
+OMEAN karyawan
+JANTEN aktif = false
+DIMANA id = 102;
+
+
+-- =====================
+-- VIEW (KACA)
+-- =====================
+
+DAMEL KACA laporan_gaji
+TINA
+  TINGALI nama, gaji
+  TI karyawan
+  DIMANA gaji > 6000000;
+
+-- Use view
+TINGALI * TI laporan_gaji;
+
+
+-- =====================
+-- INDEXING
+-- =====================
+
+-- Hash index
+TANDAIN karyawan DINA id;
+TANDAIN karyawan DINA id_div;
+
+
+-- =====================
+-- FULL TEXT SEARCH
+-- =====================
+
+DAMEL artikel
+  id:INT:PK,
+  judul:STRING,
+  konten:TEXT;
+
+SIMPEN artikel 1|Hybrid DB|MaungDB adalah database hybrid buatan lokal;
+
+DAMEL INDEKS_TEKS artikel DINA konten;
+
+KOREHAN artikel DINA konten MILARI "hybrid";
+
+
+-- =====================
+-- TRIGGER (JARAMBAH)
+-- =====================
+
+DAMEL JARAMBAH audit_gaji
+WAKTU OMEAN PADA karyawan
+LAKUKAN
+  SIMPEN log_audit "Gaji diubah", NOW();
+
+
+-- =====================
+-- QUERY PLAN
+-- =====================
+
+-- JELASKEUN TINGALI * TI karyawan DIMANA id = 101;
+
+
+-- =====================
+-- DATABASE DISCOVERY
+-- =====================
+
+TINGALI PANGKAL
+
+
+-- =====================
+-- REPLICATION (ENTERPRISE)
+-- =====================
+
+-- Master node
+JADI INDUNG;
+
+-- Slave node
+-- JADI ANAK NGINTIL 192.168.1.10
+
+
+-- =====================
+-- END OF SCRIPT
+-- =====================
