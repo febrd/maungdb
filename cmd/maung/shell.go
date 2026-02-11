@@ -41,14 +41,12 @@ func startShell() {
 			continue
 		}
 	
-		// Split input
-		args := strings.Fields(line)
+ 		args := strings.Fields(line)
 		if len(args) == 0 {
 			continue
 		}
 	
-		// 🔑 INI KUNCINYA: hanya command name yang di-lowercase
-		cmdName := strings.ToLower(args[0])
+ 		cmdName := strings.ToLower(args[0])
 	
 		switch cmdName {
 	
@@ -263,8 +261,7 @@ func startShell() {
 			continue
 	
 		default:
-			// Semua selain command → dianggap query MaungQL
-			processQuery(line)
+ 			processQuery(line)
 		}
 	}
 	

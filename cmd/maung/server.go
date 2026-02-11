@@ -15,6 +15,13 @@ import (
 	"github.com/febrd/maungdb/engine/schema"
 	"github.com/febrd/maungdb/engine/storage"
 	"github.com/febrd/maungdb/internal/config"
+	"github.com/febrd/maungdb/engine/explain"
+	"github.com/febrd/maungdb/engine/export"
+)
+var (
+	ExplainMgr *explain.Manager
+	ExportMgr *export.Manager
+
 )
 
 type ColumnInfo struct {
@@ -79,6 +86,9 @@ func startServer(port string, enableGUI bool) {
 		panic(err)
 	}
 
+	ExplainMgr = explain.NewManager("./maung_data")
+	ExportMgr = export.NewManager("./maung_data")
+
 	http.HandleFunc("/auth/login", handleLogin)
 	http.HandleFunc("/auth/logout", handleLogout)
 	http.HandleFunc("/auth/whoami", handleWhoami)
@@ -87,13 +97,15 @@ func startServer(port string, enableGUI bool) {
 	http.HandleFunc("/db/use", handleUse)
 	http.HandleFunc("/db/export", handleExport)
 	http.HandleFunc("/db/import", handleImport)
-	
+	http.HandleFunc("/db/dump", handleDBDump)
+
 	http.HandleFunc("/schema/create", handleSchemaCreate)
 	http.HandleFunc("/query", handleQuery)
 	http.HandleFunc("/ai", handleAIChat)
 	http.HandleFunc("/health-check", handleHealthCheck)
 
 	http.HandleFunc("/schema/info", handleSchemaInfo)
+	
 
 	if enableGUI {
 		serveWebUI()
@@ -114,11 +126,24 @@ func startServer(port string, enableGUI bool) {
 	}
 }
 
-func setupHeader(w http.ResponseWriter) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+
+func setupHeader(w http.ResponseWriter, reqs ...*http.Request) {
+ 	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept")
 	w.Header().Set("Content-Type", "application/json")
+
+ 	if len(reqs) > 0 && reqs[0] != nil {
+		r := reqs[0]
+		origin := r.Header.Get("Origin")
+
+		if origin != "" {
+ 			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			return
+		}
+	}
+
+ 	w.Header().Set("Access-Control-Allow-Origin", "*")
 }
 
 func sendError(w http.ResponseWriter, msg string) {
@@ -247,6 +272,49 @@ func handleWhoami(w http.ResponseWriter, r *http.Request) {
 			),
 		},
 	)
+}
+
+func handleDBDump(w http.ResponseWriter, r *http.Request) {
+    setupHeader(w, r)
+    if r.Method == "OPTIONS" {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+
+    user, err := auth.CurrentUser()
+    if err != nil {
+        sendError(w, "❌ Anjeun kedah login heula")
+        return
+    }
+
+    if user.Role != "admin" && user.Role != "supermaung" {
+        sendError(w, "⛔ Akses Ditolak: Fitur Backup khusus Admin.")
+        return
+    }
+
+    dbName := user.Database
+    if r.URL.Query().Get("db") != "" && user.Role == "supermaung" {
+        dbName = r.URL.Query().Get("db")
+    }
+
+    if dbName == "" {
+        sendError(w, "❌ Pilih database heula (Use Database) atanapi pasihan parameter ?db=...")
+        return
+    }
+
+    dumpSQL, err := ExportMgr.ExportDatabase(dbName)
+    if err != nil {
+        sendError(w, "Gagal ngadamel backup: "+err.Error())
+        return
+    }
+
+    filename := fmt.Sprintf("%s_backup_%d.mql", dbName, time.Now().Unix())
+    
+    w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+    w.Header().Set("Content-Type", "text/plain")
+    w.Header().Set("Content-Length", fmt.Sprintf("%d", len(dumpSQL)))
+
+    fmt.Fprint(w, dumpSQL)
 }
 
 func handleCreateDB(w http.ResponseWriter, r *http.Request) {
@@ -398,11 +466,29 @@ func handleQuery(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    var req QueryRequest
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        sendError(w, "JSON Error: Format request teu valid")
-        return
-    }
+	var req QueryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendError(w, "JSON Error: Format request teu valid")
+		return
+	}
+
+	rawQuery := strings.TrimSpace(req.Query)
+	upperQuery := strings.ToUpper(rawQuery)
+
+	if strings.HasPrefix(upperQuery, "JELASKEUN") {
+		if user.Database == "" {
+			sendError(w, "❌ Pilih database heula sateuacan JELASKEUN.")
+			return
+		}
+		
+ 		result, err := ExplainMgr.Analyze(user.Database, rawQuery)
+		if err != nil {
+			sendError(w, "Gagal Menganalisa: "+err.Error())
+			return
+		}
+		sendSuccess(w, "Analisa Query Berhasil", result)
+		return
+	}
 
     cmd, err := parser.Parse(req.Query)
     if err != nil {
@@ -420,6 +506,7 @@ func handleQuery(w http.ResponseWriter, r *http.Request) {
     }
 
     switch cmd.Type {
+
     case parser.CmdCreate, parser.CmdCreateView, parser.CmdCreateTrigger, parser.CmdIndex, "CREATE_FTS":
         if user.Role != "admin" && user.Role != "supermaung" {
             sendError(w, "⛔ Akses Ditolak: Ngan Admin/Supermaung nu tiasa ngarobah struktur/schema.")

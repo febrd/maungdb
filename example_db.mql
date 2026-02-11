@@ -7,8 +7,8 @@
 -- DATABASE SETUP
 -- =====================
 
-createdb maung_company;
-angge maung_company;
+createdb cihuy;
+angge cihuy;
 
 
 -- =====================
@@ -125,7 +125,7 @@ LAKUKAN
 -- QUERY PLAN
 -- =====================
 
--- JELASKEUN TINGALI * TI karyawan DIMANA id = 101;
+JELASKEUN TINGALI * TI karyawan DIMANA id = "101";
 
 
 -- =====================

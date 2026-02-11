@@ -38,7 +38,6 @@ func InitManager(inputPath string) *TxManager {
 func GetManager() *TxManager {
 	if GlobalManager == nil {
 		fmt.Println("⚠️ Warning: TxManager can di-init, ngagunakeun default path.")
-		// Fallback nu aman
 		return InitManager("./maung_data")
 	}
 	return GlobalManager

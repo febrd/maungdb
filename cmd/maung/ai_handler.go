@@ -12,8 +12,6 @@ import (
 	"github.com/febrd/maungdb/engine/auth"
 )
 
-// --- STRUKTUR DATA UNTUK API INTERNAL (FRONTEND <-> BACKEND) ---
-
 type AIChatRequest struct {
 	Message string         `json:"message"`
 	History []BytezMessage `json:"history,omitempty"`
@@ -24,9 +22,6 @@ type AIChatResponse struct {
 	Reply   string `json:"reply,omitempty"`
 	Error   string `json:"error,omitempty"`
 }
-
-// --- STRUKTUR DATA UNTUK BYTEZ (OPENAI COMPATIBLE) ---
-// Sesuai dokumentasi: https://docs.bytez.com/llms.txt
 
 type BytezMessage struct {
 	Role    string `json:"role"`
@@ -48,7 +43,6 @@ type BytezChatResponse struct {
 	} `json:"error,omitempty"`
 }
 
-// --- HANDLER UTAMA ---
 
 func handleAIChat(w http.ResponseWriter, r *http.Request) {
 	setupHeader(w)
@@ -74,15 +68,10 @@ func handleAIChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Bangun System Prompt (Karakter Si Maung)
 	systemPrompt := buildSystemPrompt(user.Username, user.Role, user.Database)
-
-	// 2. Susun Pesan untuk Bytez
 	messages := []BytezMessage{
 		{Role: "system", Content: systemPrompt},
 	}
-
-	// Masukkan history (max 10 chat terakhir)
 	if len(req.History) > 0 {
 		startIdx := 0
 		if len(req.History) > 10 {
@@ -90,23 +79,18 @@ func handleAIChat(w http.ResponseWriter, r *http.Request) {
 		}
 		messages = append(messages, req.History[startIdx:]...)
 	}
-
-	// Masukkan pesan user saat ini
 	messages = append(messages, BytezMessage{
 		Role:    "user",
 		Content: req.Message,
 	})
 
-	// 3. Panggil Bytez API
 	reply, err := callBytez(messages)
 	if err != nil {
-		// Log error ke terminal server agar mudah didebug
 		fmt.Println("❌ Bytez Error:", err)
 		sendAIError(w, "Punten, Maung nuju pusing (AI Error): "+err.Error())
 		return
 	}
 
-	// 4. Kirim Balasan ke Frontend
 	_ = json.NewEncoder(w).Encode(AIChatResponse{
 		Success: true,
 		Reply:   reply,
