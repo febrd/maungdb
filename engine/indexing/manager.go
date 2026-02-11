@@ -1,5 +1,4 @@
 package indexing
-
 import (
 	"encoding/json"
 	"fmt"
@@ -11,32 +10,21 @@ import (
 	"github.com/febrd/maungdb/engine/storage"
 )
 
-// IndexMap: Peta nilai -> List of PK (Hash Index)
-// Contoh: "Bandung" -> ["101", "102"]
 type IndexMap map[string][]string
-
 type IndexManager struct {
 	mu sync.RWMutex
 }
 
 var GlobalIndexManager = &IndexManager{}
 
-// ==========================================
-// 1. CORE FUNCTIONS (Build & Lookup)
-// ==========================================
-
-// BuildIndex: Nyieun index anyar tina data nu geus aya (TANDAIN ...)
 func (im *IndexManager) BuildIndex(tableName, colName string, schemaCols []string) error {
 	im.mu.Lock()
 	defer im.mu.Unlock()
-
-	// Baca sadaya data atah
 	rows, err := storage.ReadAll(tableName)
 	if err != nil {
 		return err
 	}
 
-	// Pilarian index kolom dina schema
 	colIdx := -1
 	for i, col := range schemaCols {
 		if col == colName {
@@ -115,7 +103,7 @@ func (im *IndexManager) UpdateIndexOnInsert(tableName string, rowData string, sc
 
 				im.mu.Lock()
 				idxMap, err := im.loadIndexFile(tableName, colName)
-				if err != nil { idxMap = make(IndexMap) } // Mun ruksak/euweuh, jieun anyar
+				if err != nil { idxMap = make(IndexMap) }
 				
 				idxMap[val] = append(idxMap[val], pk)
 				im.saveIndexFile(tableName, colName, idxMap)
@@ -154,7 +142,7 @@ func (im *IndexManager) RemoveIndex(tableName, rowID string) {
 					
 					if found {
 						if len(newPks) == 0 {
-							delete(idxMap, val) // Hapus key mun kosong
+							delete(idxMap, val)
 						} else {
 							idxMap[val] = newPks
 						}

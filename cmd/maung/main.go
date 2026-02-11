@@ -5,7 +5,6 @@ import (
     "os"
     "strings"
     
-    // --- IMPORT BARU ---
     "github.com/joho/godotenv"
     "github.com/febrd/maungdb/internal/config"
     "github.com/febrd/maungdb/engine/auth"
@@ -13,7 +12,7 @@ import (
     "github.com/febrd/maungdb/engine/parser"
     "github.com/febrd/maungdb/engine/schema"
     "github.com/febrd/maungdb/engine/storage"
-    "github.com/febrd/maungdb/engine/transaction" // <-- Import Transaction
+    "github.com/febrd/maungdb/engine/transaction"
 )
 
 func main() {
@@ -27,7 +26,6 @@ func main() {
         return
     }
 
-    // ⬇️ NORMALISASI COMMAND
     cmd := strings.ToLower(os.Args[1])
 
     if strings.Contains(cmd, " ") {
@@ -459,6 +457,9 @@ func help() {
 	fmt.Println("      ... TURUN / DESC / TI_LUHUR  : Urutan Z-A")
 	fmt.Println("  SAKADAR / LIMIT <n>              : Batesan jumlah")
 	fmt.Println("  LIWATAN / OFFSET <n>             : Loncatan awal")
+
+    fmt.Println("\n 📥 BACKUP & RESTORE tersedia di Maung Studio")
+
 
 	fmt.Println("==================================================================")
 }

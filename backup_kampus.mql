@@ -1,0 +1,29 @@
+-- 🐯 MAUNGDB EXPORT FILE
+-- Generated: Wed, 11 Feb 2026 06:42:42 WIB
+-- Version: v2.2.9 (Enterprise)
+
+-- [ BAGIAN 0: SETUP DATABASE ] --
+
+createdb mangbob;
+angge mangbob;
+
+-- [ BAGIAN 1: STRUKTUR TABEL & DATA ] --
+
+DAMEL karyawan id:INT:PK,nama:STRING,divisi:STRING,gaji:FLOAT;
+SIMPEN karyawan 1|Asep|IT|15000000;
+SIMPEN karyawan 2|Euis|HRD|8000000;
+SIMPEN karyawan 3|Ujang|IT|12000000;
+SIMPEN karyawan 4|Dedi|Marketing|9000000;
+-- Total Data: 4 baris
+
+DAMEL log_akses id:INT,info:TEXT;
+-- Total Data: 0 baris
+
+DAMEL nilai_mhs nama:STRING,poin:INT;
+SIMPEN nilai_mhs Udin|90;
+-- Total Data: 1 baris
+
+-- [ BAGIAN 2: OPTIMASI INDEX ] --
+TANDAIN karyawan DINA nama;
+
+-- EXPORT RÉNGSÉ. HATUR NUHUN --
