@@ -17,7 +17,7 @@ import (
 
 func main() {
     _ = godotenv.Load()
-    walPath := "maung_data/wal.log"
+    walPath := filepath.Join(config.DataDir, "wal.log")
     _ = storage.Init()
     transaction.InitManager(walPath)
 

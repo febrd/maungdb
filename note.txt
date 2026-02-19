@@ -1,0 +1,56 @@
+saya punya file internal/config.go
+
+isinya
+
+package config
+
+var (
+	DataDir   = "maung_data"
+	SystemDir = "_system"
+	SchemaDir = "_schema"
+
+	AllowedExt = []string{".mg", ".maung"}
+
+	DefaultUser = "maung"
+	DefaultPass = "maung"
+	DefaultRole = "supermaung"
+
+	Roles = map[string]int{
+		"supermaung": 0,
+		"admin":      1,
+		"user":       2,
+	}
+
+	SessionFile = "session.maung"
+	GrantsFile  = "grants.maung"
+)
+
+
+lalu di cmd/maung/main.go ada
+
+func main() {
+    _ = godotenv.Load()
+    walPath := "maung_data/wal.log"
+    _ = storage.Init()
+    transaction.InitManager(walPath)
+
+
+maung_data
+
+di server.go ada jga
+
+
+	ExplainMgr = explain.NewManager("./maung_data")
+	ExportMgr = export.NewManager("./maung_data")
+
+
+di engine/transaction/manager.go ada juga
+func GetManager() *TxManager {
+	if GlobalManager == nil {
+		fmt.Println("⚠️ Warning: TxManager can di-init, ngagunakeun default path.")
+		return InitManager("./maung_data")
+	}
+	return GlobalManager
+}
+
+maung_data
