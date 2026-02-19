@@ -86,8 +86,8 @@ func startServer(port string, enableGUI bool) {
 		panic(err)
 	}
 
-	ExplainMgr = explain.NewManager("./maung_data")
-	ExportMgr = export.NewManager("./maung_data")
+	ExplainMgr = explain.NewManager(config.DataDir)
+	ExportMgr = export.NewManager(config.DataDir)
 
 	http.HandleFunc("/auth/login", handleLogin)
 	http.HandleFunc("/auth/logout", handleLogout)

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/febrd/maungdb/engine/storage"
+	"github.com/febrd/maungdb/internal/config"
 )
 
 func InitManager(inputPath string) *TxManager {
@@ -38,7 +39,7 @@ func InitManager(inputPath string) *TxManager {
 func GetManager() *TxManager {
 	if GlobalManager == nil {
 		fmt.Println("⚠️ Warning: TxManager can di-init, ngagunakeun default path.")
-		return InitManager("./maung_data")
+		return InitManager(config.DataDir)
 	}
 	return GlobalManager
 }
