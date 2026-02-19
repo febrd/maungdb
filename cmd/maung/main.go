@@ -4,7 +4,7 @@ import (
     "fmt"
     "os"
     "strings"
-    
+    "path/filepath"
     "github.com/joho/godotenv"
     "github.com/febrd/maungdb/internal/config"
     "github.com/febrd/maungdb/engine/auth"
